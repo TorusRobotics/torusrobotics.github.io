@@ -1,5 +1,7 @@
 """
 VESC Airgap Database Backend — Single Unified Table
+v2: adds flux_linkage_initial_mwb, flux_linkage_final_mwb, flux_delta_mwb,
+    flux_initial_ts, flux_final_ts
 Run: python server.py
 """
 
@@ -23,18 +25,25 @@ def migrate_db(conn):
     existing_cols = {row[1] for row in conn.execute("PRAGMA table_info(motor_records)").fetchall()}
 
     migrations = [
-        ("rpm_per_volt",        "ALTER TABLE motor_records ADD COLUMN rpm_per_volt      REAL"),
-        ("rpm_at_48v",          "ALTER TABLE motor_records ADD COLUMN rpm_at_48v        REAL"),
-        ("tach_at_ramp",        "ALTER TABLE motor_records ADD COLUMN tach_at_ramp      INTEGER"),
-        ("motor_notes",         "ALTER TABLE motor_records ADD COLUMN motor_notes       TEXT"),
-        ("tach_moves",          "ALTER TABLE motor_records ADD COLUMN tach_moves        TEXT"),
-        ("flux_linkage_mwb",    "ALTER TABLE motor_records ADD COLUMN flux_linkage_mwb  REAL"),
-        ("resistance_mohm",     "ALTER TABLE motor_records ADD COLUMN resistance_mohm   REAL"),
-        ("inductance_uh",       "ALTER TABLE motor_records ADD COLUMN inductance_uh     REAL"),
-        ("battery_current_a",   "ALTER TABLE motor_records ADD COLUMN battery_current_a REAL"),
-        ("duty_pct",            "ALTER TABLE motor_records ADD COLUMN duty_pct          REAL"),
-        ("voltage_v",           "ALTER TABLE motor_records ADD COLUMN voltage_v         REAL"),
-        ("rpm_at_95",           "ALTER TABLE motor_records ADD COLUMN rpm_at_95         INTEGER"),
+        ("rpm_per_volt",                "ALTER TABLE motor_records ADD COLUMN rpm_per_volt               REAL"),
+        ("rpm_at_48v",                  "ALTER TABLE motor_records ADD COLUMN rpm_at_48v                 REAL"),
+        ("tach_at_ramp",                "ALTER TABLE motor_records ADD COLUMN tach_at_ramp               INTEGER"),
+        ("motor_notes",                 "ALTER TABLE motor_records ADD COLUMN motor_notes                TEXT"),
+        ("tach_moves",                  "ALTER TABLE motor_records ADD COLUMN tach_moves                 TEXT"),
+        # legacy single-measurement flux (kept for backward compat)
+        ("flux_linkage_mwb",            "ALTER TABLE motor_records ADD COLUMN flux_linkage_mwb           REAL"),
+        ("resistance_mohm",             "ALTER TABLE motor_records ADD COLUMN resistance_mohm            REAL"),
+        ("inductance_uh",               "ALTER TABLE motor_records ADD COLUMN inductance_uh              REAL"),
+        ("battery_current_a",           "ALTER TABLE motor_records ADD COLUMN battery_current_a          REAL"),
+        ("duty_pct",                    "ALTER TABLE motor_records ADD COLUMN duty_pct                   REAL"),
+        ("voltage_v",                   "ALTER TABLE motor_records ADD COLUMN voltage_v                  REAL"),
+        ("rpm_at_95",                   "ALTER TABLE motor_records ADD COLUMN rpm_at_95                  INTEGER"),
+        # ── NEW flux columns ──────────────────────────────────────────────────
+        ("flux_linkage_initial_mwb",    "ALTER TABLE motor_records ADD COLUMN flux_linkage_initial_mwb  REAL"),
+        ("flux_linkage_final_mwb",      "ALTER TABLE motor_records ADD COLUMN flux_linkage_final_mwb    REAL"),
+        ("flux_delta_mwb",              "ALTER TABLE motor_records ADD COLUMN flux_delta_mwb            REAL"),
+        ("flux_initial_ts",             "ALTER TABLE motor_records ADD COLUMN flux_initial_ts            TEXT"),
+        ("flux_final_ts",               "ALTER TABLE motor_records ADD COLUMN flux_final_ts              TEXT"),
     ]
 
     for col_name, sql in migrations:
@@ -51,41 +60,56 @@ def init_db():
     conn = get_db()
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS motor_records (
-            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            id                          INTEGER PRIMARY KEY AUTOINCREMENT,
 
             -- Motor identity
-            motor_no            TEXT    NOT NULL,
-            motor_notes         TEXT,
+            motor_no                    TEXT    NOT NULL,
+            motor_notes                 TEXT,
 
             -- Airgap adjustment
-            tach_cumulative     INTEGER,
-            tach_delta          INTEGER,
-            direction           TEXT,
-            tach_moves          TEXT,
+            tach_cumulative             INTEGER,
+            tach_delta                  INTEGER,
+            direction                   TEXT,
+            tach_moves                  TEXT,
 
-            -- Motor parameters (R, L, Flux)
-            resistance_mohm     REAL,
-            inductance_uh       REAL,
-            flux_linkage_mwb    REAL,
+            -- Motor parameters (R, L)
+            resistance_mohm             REAL,
+            inductance_uh               REAL,
+
+            -- Flux linkage — legacy (kept for backward compat, populated with final value)
+            flux_linkage_mwb            REAL,
+
+            -- Flux linkage — initial (before airgap adjustment)
+            flux_linkage_initial_mwb    REAL,
+            flux_initial_ts             TEXT,
+
+            -- Flux linkage — final (after airgap adjustment)
+            flux_linkage_final_mwb      REAL,
+            flux_final_ts               TEXT,
+
+            -- Flux delta (final − initial)
+            flux_delta_mwb              REAL,
 
             -- Ramp test results at 95% duty
-            motor_current_a     REAL,
-            battery_current_a   REAL,
-            duty_pct            REAL,
-            voltage_v           REAL,
-            rpm_at_95           INTEGER,
-            tach_at_ramp        INTEGER,
-            rpm_per_volt        REAL,
-            rpm_at_48v          REAL,
+            motor_current_a             REAL,
+            battery_current_a           REAL,
+            duty_pct                    REAL,
+            voltage_v                   REAL,
+            rpm_at_95                   INTEGER,
+            tach_at_ramp                INTEGER,
+            rpm_per_volt                REAL,
+            rpm_at_48v                  REAL,
 
             -- record_type: "registration" | "airgap" | "ramp" | "full"
-            record_type         TEXT    NOT NULL DEFAULT 'airgap',
+            record_type                 TEXT    NOT NULL DEFAULT 'airgap',
 
-            timestamp           TEXT    NOT NULL
+            timestamp                   TEXT    NOT NULL
         );
 
-        CREATE INDEX IF NOT EXISTS idx_flux  ON motor_records(flux_linkage_mwb);
-        CREATE INDEX IF NOT EXISTS idx_motor ON motor_records(motor_no);
+        CREATE INDEX IF NOT EXISTS idx_flux_init  ON motor_records(flux_linkage_initial_mwb);
+        CREATE INDEX IF NOT EXISTS idx_flux_final ON motor_records(flux_linkage_final_mwb);
+        CREATE INDEX IF NOT EXISTS idx_flux       ON motor_records(flux_linkage_mwb);
+        CREATE INDEX IF NOT EXISTS idx_motor      ON motor_records(motor_no);
     """)
     conn.commit()
 
@@ -101,24 +125,29 @@ def save_record():
     if not d.get("motor_no"):
         return jsonify({"error": "motor_no required"}), 400
 
-    # Issue 3 fix: tach_cumulative=0 is valid — only reject if key is absent AND
-    # it's not a ramp-only record.
-    tach_cumulative = d.get("tach_cumulative")   # may be 0, None, or a number
+    tach_cumulative = d.get("tach_cumulative")
     tach_delta      = d.get("tach_delta")
     direction       = d.get("direction")
     tach_moves      = d.get("tach_moves")
+
+    # flux_linkage_mwb legacy: prefer final, fall back to initial
+    flux_legacy = d.get("flux_linkage_mwb") or d.get("flux_linkage_final_mwb") or d.get("flux_linkage_initial_mwb")
 
     conn = get_db()
     cur = conn.execute(
         """INSERT INTO motor_records
            (motor_no, motor_notes,
             tach_cumulative, tach_delta, direction, tach_moves,
-            resistance_mohm, inductance_uh, flux_linkage_mwb,
+            resistance_mohm, inductance_uh,
+            flux_linkage_mwb,
+            flux_linkage_initial_mwb, flux_initial_ts,
+            flux_linkage_final_mwb,   flux_final_ts,
+            flux_delta_mwb,
             motor_current_a, battery_current_a, duty_pct, voltage_v,
             rpm_at_95, tach_at_ramp,
             rpm_per_volt, rpm_at_48v,
             record_type, timestamp)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             d.get("motor_no"),
             d.get("motor_notes", ""),
@@ -128,7 +157,12 @@ def save_record():
             tach_moves,
             d.get("resistance_mohm"),
             d.get("inductance_uh"),
-            d.get("flux_linkage_mwb"),
+            flux_legacy,
+            d.get("flux_linkage_initial_mwb"),
+            d.get("flux_initial_ts"),
+            d.get("flux_linkage_final_mwb"),
+            d.get("flux_final_ts"),
+            d.get("flux_delta_mwb"),
             d.get("motor_current_a"),
             d.get("battery_current_a"),
             d.get("duty_pct"),
@@ -165,7 +199,7 @@ def get_records():
     conn.close()
     return jsonify([dict(r) for r in rows])
 
-# ─── Flux linkage auto-suggest ────────────────────────────────────────────────
+# ─── Flux linkage auto-suggest (uses final flux if available, else initial) ───
 @app.route("/api/flux-suggest", methods=["GET"])
 def flux_suggest():
     try:
@@ -174,15 +208,24 @@ def flux_suggest():
         return jsonify({"suggestions": []})
     tol = float(request.args.get("tol", 0.05))
     conn = get_db()
+    # prefer final flux for matching; fall back to legacy
     rows = conn.execute(
         """SELECT motor_no, tach_cumulative, tach_delta, direction,
-                  motor_current_a, voltage_v, flux_linkage_mwb, timestamp
+                  motor_current_a, voltage_v,
+                  flux_linkage_mwb,
+                  flux_linkage_initial_mwb,
+                  flux_linkage_final_mwb,
+                  flux_delta_mwb,
+                  timestamp
            FROM motor_records
-           WHERE flux_linkage_mwb IS NOT NULL
-             AND tach_cumulative IS NOT NULL
-             AND ABS(flux_linkage_mwb - ?) <= ?
+           WHERE (
+               (flux_linkage_final_mwb IS NOT NULL AND ABS(flux_linkage_final_mwb - ?) <= ?)
+               OR
+               (flux_linkage_final_mwb IS NULL AND flux_linkage_mwb IS NOT NULL AND ABS(flux_linkage_mwb - ?) <= ?)
+           )
+           AND tach_cumulative IS NOT NULL
            ORDER BY timestamp DESC LIMIT 10""",
-        (flux, tol)
+        (flux, tol, flux, tol)
     ).fetchall()
     conn.close()
     return jsonify({"flux": flux, "tolerance": tol, "suggestions": [dict(r) for r in rows]})
@@ -196,7 +239,7 @@ def delete_record(record_id):
     conn.close()
     return jsonify({"ok": True})
 
-# ─── Replace latest record for a motor+type ──────────────────────────────────
+# ─── Replace latest record for a motor ───────────────────────────────────────
 @app.route("/api/record/replace", methods=["POST"])
 def replace_record():
     d = request.json
@@ -204,8 +247,6 @@ def replace_record():
         return jsonify({"error": "motor_no and record_type required"}), 400
 
     conn = get_db()
-
-    # Find the latest record for this motor (any type, so we replace the true latest)
     existing = conn.execute(
         "SELECT id FROM motor_records WHERE motor_no=? ORDER BY timestamp DESC LIMIT 1",
         (d.get("motor_no"),)
@@ -216,34 +257,34 @@ def replace_record():
         replaced_id = existing["id"]
         conn.execute("DELETE FROM motor_records WHERE id=?", (replaced_id,))
 
+    flux_legacy = d.get("flux_linkage_mwb") or d.get("flux_linkage_final_mwb") or d.get("flux_linkage_initial_mwb")
+
     cur = conn.execute(
         """INSERT INTO motor_records
            (motor_no, motor_notes,
             tach_cumulative, tach_delta, direction, tach_moves,
-            resistance_mohm, inductance_uh, flux_linkage_mwb,
+            resistance_mohm, inductance_uh,
+            flux_linkage_mwb,
+            flux_linkage_initial_mwb, flux_initial_ts,
+            flux_linkage_final_mwb,   flux_final_ts,
+            flux_delta_mwb,
             motor_current_a, battery_current_a, duty_pct, voltage_v,
             rpm_at_95, tach_at_ramp,
             rpm_per_volt, rpm_at_48v,
             record_type, timestamp)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
-            d.get("motor_no"),
-            d.get("motor_notes", ""),
-            d.get("tach_cumulative"),
-            d.get("tach_delta"),
-            d.get("direction"),
-            d.get("tach_moves"),
-            d.get("resistance_mohm"),
-            d.get("inductance_uh"),
-            d.get("flux_linkage_mwb"),
-            d.get("motor_current_a"),
-            d.get("battery_current_a"),
-            d.get("duty_pct"),
-            d.get("voltage_v"),
-            d.get("rpm_at_95"),
-            d.get("tach_at_ramp"),
-            d.get("rpm_per_volt"),
-            d.get("rpm_at_48v"),
+            d.get("motor_no"), d.get("motor_notes", ""),
+            d.get("tach_cumulative"), d.get("tach_delta"), d.get("direction"), d.get("tach_moves"),
+            d.get("resistance_mohm"), d.get("inductance_uh"),
+            flux_legacy,
+            d.get("flux_linkage_initial_mwb"), d.get("flux_initial_ts"),
+            d.get("flux_linkage_final_mwb"),   d.get("flux_final_ts"),
+            d.get("flux_delta_mwb"),
+            d.get("motor_current_a"), d.get("battery_current_a"),
+            d.get("duty_pct"), d.get("voltage_v"),
+            d.get("rpm_at_95"), d.get("tach_at_ramp"),
+            d.get("rpm_per_volt"), d.get("rpm_at_48v"),
             d.get("record_type", "airgap"),
             datetime.datetime.now().isoformat()
         )
@@ -262,6 +303,9 @@ def motor_stats(motor_no):
                   MAX(tach_cumulative) as max_tach,
                   AVG(motor_current_a) as avg_current,
                   MAX(voltage_v) as max_voltage,
+                  AVG(flux_linkage_initial_mwb) as avg_flux_initial,
+                  AVG(flux_linkage_final_mwb) as avg_flux_final,
+                  AVG(flux_delta_mwb) as avg_flux_delta,
                   MIN(timestamp) as first_seen,
                   MAX(timestamp) as last_seen
            FROM motor_records WHERE motor_no=?""",

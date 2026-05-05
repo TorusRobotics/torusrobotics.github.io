@@ -1,394 +1,1138 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <title>TMCS Airgap Control</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg:#080c10; --panel:#0d1520; --border:#1a2a3a;
-  --accent:#00e5ff; --accent2:#f97316; --accent3:#22c55e;
-  --danger:#ef4444; --purple:#a78bfa; --gold:#fbbf24;
-  --muted:#4a6070; --text:#c8dce8;
-  --mono:'Share Tech Mono',monospace; --sans:'Sora',sans-serif;
-}
-body {
-  font-family:var(--sans); background:var(--bg); color:var(--text);
-  min-height:100vh; padding:20px 14px 60px;
-  background-image:
-    radial-gradient(ellipse 80% 40% at 50% -10%,rgba(0,229,255,.07) 0%,transparent 60%),
-    repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(0,229,255,.025) 39px,rgba(0,229,255,.025) 40px),
-    repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(0,229,255,.025) 39px,rgba(0,229,255,.025) 40px);
-}
-.wrap { max-width:1240px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
-header { display:flex; align-items:center; gap:12px; flex-wrap:wrap; border-bottom:1px solid var(--border); padding-bottom:14px; }
-header h1 { font-size:19px; font-weight:700; letter-spacing:.06em; color:#fff; }
-.badge { font-family:var(--mono); font-size:10px; color:var(--accent); border:1px solid var(--accent); padding:2px 7px; border-radius:4px; opacity:.8; }
-.api-status { display:flex; align-items:center; gap:5px; font-family:var(--mono); font-size:10px; margin-left:auto; }
-.api-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); transition:background .3s; }
-.api-dot.ok { background:var(--accent3); } .api-dot.err { background:var(--danger); }
-.dot { width:7px; height:7px; border-radius:50%; background:var(--muted); display:inline-block; margin-right:5px; transition:background .3s,box-shadow .3s; }
-.dot.active { background:var(--accent3); box-shadow:0 0 8px var(--accent3); }
-.cols { display:grid; grid-template-columns:340px 1fr 320px; gap:14px; align-items:start; }
-.panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px; position:relative; overflow:hidden; }
-.panel::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--accent),transparent); opacity:.3; }
-.panel.g::before  { background:linear-gradient(90deg,transparent,var(--gold),transparent);    opacity:.5; }
-.panel.gn::before { background:linear-gradient(90deg,transparent,var(--accent3),transparent); opacity:.5; }
-.panel.pu::before { background:linear-gradient(90deg,transparent,var(--purple),transparent);  opacity:.5; }
-.pt { font-size:10px; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
-.field { margin-bottom:10px; }
-.field label { display:block; font-size:10px; color:var(--muted); letter-spacing:.08em; margin-bottom:4px; }
-.field input, .field select { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:7px 10px; color:#fff; font-family:var(--mono); font-size:13px; outline:none; transition:border-color .2s; }
-.field input:focus, .field select:focus { border-color:var(--accent); }
-.row { display:flex; gap:8px; }
-.row .field { flex:1; }
-.btn { width:100%; padding:8px 12px; border-radius:6px; border:none; cursor:pointer; font-family:var(--sans); font-size:12px; font-weight:600; letter-spacing:.04em; transition:opacity .2s,transform .1s; }
-.btn:active:not(:disabled) { transform:scale(.97); }
-.btn:disabled { opacity:.22; cursor:not-allowed; }
-.btn:not(:disabled):hover { opacity:.82; }
-.btn-c  { background:var(--accent2); color:#000; }
-.btn-d  { background:var(--danger);  color:#fff; }
-.btn-rl { background:var(--accent);  color:#000; }
-.btn-fx { background:var(--purple);  color:#fff; }
-.btn-rn { background:var(--accent3); color:#000; }
-.btn-gd { background:var(--gold);    color:#000; }
-.btn-sv { background:#1e3a2a; border:1px solid var(--accent3); color:var(--accent3); }
-.btn-db { background:#1a1a2e; border:1px solid var(--purple);  color:var(--purple); }
-.btn-ex { background:#1a2a1a; border:1px solid var(--accent3); color:var(--accent3); }
-.btn-row { display:flex; gap:8px; margin-bottom:10px; }
-.btn-row .btn { flex:1; }
-.sb { display:flex; align-items:center; gap:7px; background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:6px 10px; font-family:var(--mono); font-size:11px; margin-top:8px; min-height:32px; }
-.mid-box { background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(251,191,36,.02)); border:1px solid rgba(251,191,36,.28); border-radius:7px; padding:10px 12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; }
-.mid-label { font-size:9px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:2px; }
-.mid-val { font-family:var(--mono); font-size:18px; }
-.tac-box { background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:10px 12px; margin-bottom:10px; }
-.tac-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; }
-.tac-label { font-size:9px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; }
-.tac-val { font-family:var(--mono); font-size:20px; }
-.chips { display:flex; gap:5px; flex-wrap:wrap; margin-top:5px; }
-.chip { font-family:var(--mono); font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(0,229,255,.07); border:1px solid rgba(0,229,255,.15); color:var(--accent); }
-.chip.neg { background:rgba(239,68,68,.07); border-color:rgba(239,68,68,.2); color:var(--danger); }
-.suggest-box { display:none; background:rgba(251,191,36,.07); border:1px solid rgba(251,191,36,.3); border-radius:7px; padding:10px 12px; margin-bottom:10px; }
-.suggest-box.on { display:block; }
-.suggest-title { font-size:9px; color:var(--gold); letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px; }
-.suggest-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-family:var(--mono); font-size:11px; cursor:pointer; padding:4px 6px; border-radius:4px; }
-.suggest-row:hover { background:rgba(251,191,36,.08); }
-.suggest-apply { font-size:9px; color:var(--gold); border:1px solid rgba(251,191,36,.3); padding:1px 6px; border-radius:3px; margin-left:auto; }
-.m3 { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-top:8px; }
-.mc { background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:10px 6px; text-align:center; }
-.mc .v { font-family:var(--mono); font-size:17px; color:#fff; line-height:1; margin-bottom:2px; }
-.mc .u { font-size:9px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; }
-.th { text-align:center; padding:14px 6px 10px; }
-.tl { font-size:10px; letter-spacing:.15em; color:var(--muted); text-transform:uppercase; margin-bottom:5px; }
-.tv { font-family:var(--mono); font-size:46px; line-height:1; color:var(--accent); text-shadow:0 0 20px rgba(0,229,255,.5); transition:color .3s; min-height:50px; display:flex; align-items:center; justify-content:center; }
-.tv.stale { color:#2a4050; font-size:34px; text-shadow:none; }
-.tu { font-size:10px; color:var(--muted); margin-top:3px; }
-.gw { display:flex; justify-content:center; margin:8px 0 4px; }
-.sm { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:8px; }
-.smc { background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:9px; }
-.sl { font-size:9px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:2px; }
-.sv { font-family:var(--mono); font-size:17px; color:#fff; }
-.ttd { background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:10px 12px; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-family:var(--mono); font-size:11px; }
-.ttd-g { display:flex; flex-direction:column; align-items:center; gap:2px; }
-.ttd-lbl { font-size:8px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; }
-.ttd-v { font-size:18px; line-height:1; }
-.arr { font-size:14px; color:var(--muted); }
-.dir-b { font-family:var(--mono); font-size:9px; padding:2px 6px; border-radius:4px; margin-left:4px; }
-.fwd { background:rgba(34,197,94,.15); color:var(--accent3); border:1px solid rgba(34,197,94,.3); }
-.rev { background:rgba(239,68,68,.15); color:var(--danger); border:1px solid rgba(239,68,68,.3); }
-.non { background:rgba(74,96,112,.15); color:var(--muted); border:1px solid rgba(74,96,112,.3); }
-.pw { margin:8px 0 6px; }
-.pr { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-bottom:3px; }
-.pt2 { background:var(--bg); border:1px solid var(--border); border-radius:5px; height:9px; overflow:hidden; }
-.pf { height:100%; width:0%; background:var(--accent3); border-radius:5px; transition:width .3s ease,background .3s; }
-.rir { display:flex; background:var(--bg); border:1px solid var(--border); border-radius:6px; overflow:hidden; margin-bottom:8px; font-family:var(--mono); font-size:10px; }
-.ric { flex:1; padding:6px 7px; border-right:1px solid var(--border); display:flex; flex-direction:column; gap:2px; }
-.ric:last-child { border-right:none; }
-.ricl { font-size:8px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; }
-.ricv { font-size:13px; }
-/* Ramp */
-.ramp-bar-wrap { margin:8px 0; }
-.ramp-lrow { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-bottom:3px; }
-.ramp-track { background:var(--bg); border:1px solid var(--border); border-radius:5px; height:12px; overflow:hidden; }
-.ramp-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--accent3),var(--gold),var(--danger)); border-radius:5px; transition:width .15s linear; }
-.rv-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; margin-top:8px; }
-.rvc { background:var(--bg); border:1px solid var(--border); border-radius:7px; padding:9px; }
-.rvc.hl { border-color:rgba(251,191,36,.3); background:rgba(251,191,36,.04); }
-.rvc.hl .rvv { color:var(--gold); }
-.rvc.rpm-48v { border-color:rgba(0,229,255,.4); background:rgba(0,229,255,.06); grid-column:1/-1; }
-.rvc.rpm-48v .rvv { color:var(--accent); font-size:26px; }
-.rvl { font-size:9px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:2px; }
-.rvv { font-family:var(--mono); font-size:20px; color:#fff; }
-.rvu { font-size:9px; color:var(--muted); }
-/* LIVE RAMP STRIP */
-.ramp-live-strip { display:none; background:rgba(0,229,255,.04); border:1px solid rgba(0,229,255,.18); border-radius:7px; padding:9px 10px; margin:6px 0; }
-.ramp-live-strip.on { display:block; }
-.rls-title { font-size:9px; color:var(--accent); letter-spacing:.12em; text-transform:uppercase; margin-bottom:6px; }
-.rls-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-.rls-cell { text-align:center; }
-.rls-lbl  { font-size:8px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-bottom:2px; }
-.rls-val  { font-family:var(--mono); font-size:15px; color:#fff; }
-/* HOLD BAR */
-.ramp-hold-bar { display:none; margin:6px 0; }
-.ramp-hold-bar.on { display:block; }
-.ramp-hold-lrow { display:flex; justify-content:space-between; font-size:10px; color:var(--muted); margin-bottom:3px; }
-.ramp-hold-track { background:var(--bg); border:1px solid rgba(251,191,36,.2); border-radius:5px; height:8px; overflow:hidden; }
-.ramp-hold-fill { height:100%; width:100%; background:var(--gold); border-radius:5px; transition:width .1s linear; }
-/* DB TABLE */
-.db-full { grid-column:1/-1; }
-.db-frow { display:flex; gap:7px; margin-bottom:8px; align-items:center; flex-wrap:wrap; }
-.db-frow input { background:var(--bg); border:1px solid var(--border); border-radius:5px; padding:5px 9px; color:#fff; font-family:var(--mono); font-size:11px; outline:none; }
-.db-frow input:focus { border-color:var(--accent); }
-.dbw { overflow-x:auto; }
-table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:10px; }
-th { background:rgba(0,229,255,.05); color:var(--muted); text-transform:uppercase; letter-spacing:.08em; font-size:8px; padding:6px 8px; text-align:left; border-bottom:1px solid var(--border); white-space:nowrap; }
-td { padding:6px 8px; border-bottom:1px solid rgba(26,42,58,.5); color:var(--text); white-space:nowrap; }
-tr:last-child td { border-bottom:none; }
-tr:hover td { background:rgba(0,229,255,.025); }
-td.ok { color:var(--accent3); } td.er { color:var(--danger); } td.gd { color:var(--gold); } td.ac { color:var(--accent); }
-.db-empty { text-align:center; padding:20px; color:var(--muted); font-size:11px; }
-.dbb { font-family:var(--mono); font-size:9px; padding:1px 5px; border-radius:3px; }
-.dbb.fwd { background:rgba(34,197,94,.15); color:var(--accent3); }
-.dbb.rev { background:rgba(239,68,68,.15); color:var(--danger); }
-.del-btn { background:none; border:1px solid rgba(239,68,68,.3); color:var(--danger); border-radius:3px; padding:1px 6px; cursor:pointer; font-size:9px; font-family:var(--mono); }
-.del-btn:hover { background:rgba(239,68,68,.1); }
-.log { background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:7px 9px; font-family:var(--mono); font-size:10px; height:120px; overflow-y:auto; margin-top:8px; color:var(--muted); line-height:1.7; }
-.log .ok  { color:var(--accent3); } .log .er  { color:var(--danger); }
-.log .inf { color:var(--accent); }  .log .hx  { color:#e2b96a; }
-.log .hx2 { color:#8aabbc; }       .log .db  { color:var(--purple); }
-.log .rmp { color:var(--gold); }
-.sf { font-family:var(--mono); font-size:10px; text-align:center; padding:4px; border-radius:4px; margin-top:5px; display:none; }
-.sf.ok { display:block; color:var(--accent3); background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.2); }
-.sf.er { display:block; color:var(--danger); background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); }
-@keyframes pulse-ring { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}70%{box-shadow:0 0 0 7px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
-.rai { width:8px;height:8px;border-radius:50%;background:var(--accent3);animation:pulse-ring 1.2s ease-out infinite;display:none; }
-.rai.on { display:inline-block; }
-.divider { border:none; border-top:1px solid var(--border); margin:8px 0; }
-.tag { font-family:var(--mono); font-size:9px; background:rgba(0,229,255,.1); color:var(--accent); border:1px solid rgba(0,229,255,.2); border-radius:4px; padding:1px 5px; }
-/* Duplicate modal */
-.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:1000; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
-.modal-overlay.on { display:flex; }
-.modal { background:var(--panel); border:1px solid rgba(249,115,22,.4); border-radius:12px; padding:24px; max-width:400px; width:90%; }
-.modal-title { font-size:14px; font-weight:700; color:var(--accent2); margin-bottom:8px; }
-.modal-body { font-size:11px; color:var(--text); line-height:1.6; margin-bottom:16px; }
-.modal-motor { font-family:var(--mono); font-size:16px; color:var(--gold); margin:6px 0; }
-.modal-btns { display:flex; gap:8px; }
-.modal-btns .btn { flex:1; }
-/* RPM/V calc box */
-.rvc-calc { border-color:rgba(0,229,255,.35); background:rgba(0,229,255,.04); }
-.rvc-calc .rvv { color:var(--accent); }
-.rpm48-big { grid-column:1/-1; border-color:rgba(0,229,255,.5); background:rgba(0,229,255,.07); }
-.rpm48-big .rvv { color:var(--accent); font-size:28px; }
 
-/* ── LOOKUP AUTOCOMPLETE ─────────────────────────────────────────────────── */
-.lookup-wrap { position:relative; }
+:root[data-theme="dark"] {
+  --bg: #0d0f14;
+  --bg2: #13161e;
+  --bg3: #191d28;
+  --surface: #1c2030;
+  --surface2: #222840;
+  --border: rgba(255,255,255,0.07);
+  --border2: rgba(255,255,255,0.12);
+  --text: #c8d4e8;
+  --text2: #7a8aaa;
+  --text3: #4a5570;
+  --heading: #e8edf8;
+  --accent: #4f9cf9;
+  --accent-dim: rgba(79,156,249,0.12);
+  --accent-border: rgba(79,156,249,0.25);
+  --green: #3ecf8e;
+  --green-dim: rgba(62,207,142,0.1);
+  --green-border: rgba(62,207,142,0.2);
+  --amber: #f5a623;
+  --amber-dim: rgba(245,166,35,0.1);
+  --amber-border: rgba(245,166,35,0.2);
+  --red: #f06060;
+  --red-dim: rgba(240,96,96,0.1);
+  --red-border: rgba(240,96,96,0.2);
+  --purple: #a78bfa;
+  --purple-dim: rgba(167,139,250,0.1);
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --shadow: 0 1px 3px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --input-bg: rgba(255,255,255,0.04);
+  --input-border: rgba(255,255,255,0.08);
+  --input-focus: rgba(79,156,249,0.35);
+  --gauge-track: #1e2638;
+  --chip-bg: rgba(79,156,249,0.08);
+  --chip-border: rgba(79,156,249,0.18);
+  --log-bg: rgba(0,0,0,0.25);
+  --modal-bg: #1c2030;
+  --modal-overlay: rgba(0,0,0,0.7);
+  --badge-bg: rgba(255,255,255,0.06);
+  --badge-border: rgba(255,255,255,0.1);
+  --tbl-head: rgba(255,255,255,0.03);
+  --tbl-hover: rgba(79,156,249,0.04);
+  --scrollbar: rgba(255,255,255,0.08);
+  --scrollbar-hover: rgba(255,255,255,0.15);
+}
+
+:root[data-theme="light"] {
+  --bg: #f0f2f7;
+  --bg2: #e8eaf1;
+  --bg3: #dfe1eb;
+  --surface: #ffffff;
+  --surface2: #f7f8fc;
+  --border: rgba(0,0,0,0.07);
+  --border2: rgba(0,0,0,0.12);
+  --text: #2d3a52;
+  --text2: #6b7899;
+  --text3: #9ba8c0;
+  --heading: #111827;
+  --accent: #2563eb;
+  --accent-dim: rgba(37,99,235,0.08);
+  --accent-border: rgba(37,99,235,0.2);
+  --green: #059669;
+  --green-dim: rgba(5,150,105,0.08);
+  --green-border: rgba(5,150,105,0.2);
+  --amber: #d97706;
+  --amber-dim: rgba(217,119,6,0.08);
+  --amber-border: rgba(217,119,6,0.2);
+  --red: #dc2626;
+  --red-dim: rgba(220,38,38,0.08);
+  --red-border: rgba(220,38,38,0.18);
+  --purple: #7c3aed;
+  --purple-dim: rgba(124,58,237,0.08);
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.06);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
+  --input-bg: #ffffff;
+  --input-border: rgba(0,0,0,0.1);
+  --input-focus: rgba(37,99,235,0.3);
+  --gauge-track: #e5e8f0;
+  --chip-bg: rgba(37,99,235,0.06);
+  --chip-border: rgba(37,99,235,0.16);
+  --log-bg: #f7f8fc;
+  --modal-bg: #ffffff;
+  --modal-overlay: rgba(0,0,0,0.5);
+  --badge-bg: rgba(0,0,0,0.04);
+  --badge-border: rgba(0,0,0,0.1);
+  --tbl-head: rgba(0,0,0,0.025);
+  --tbl-hover: rgba(37,99,235,0.03);
+  --scrollbar: rgba(0,0,0,0.1);
+  --scrollbar-hover: rgba(0,0,0,0.18);
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  padding: 0 0 80px;
+  font-size: 13px;
+  line-height: 1.5;
+  transition: background 0.25s, color 0.25s;
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* ── HEADER ── */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-logo-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--heading);
+  letter-spacing: -0.01em;
+}
+.header-subtitle {
+  font-size: 11px;
+  color: var(--text2);
+  font-family: var(--mono);
+}
+.header-badges {
+  display: flex;
+  gap: 6px;
+}
+.badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  border: 1px solid var(--badge-border);
+  background: var(--badge-bg);
+  color: var(--text2);
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+.badge.active { border-color: var(--green-border); color: var(--green); background: var(--green-dim); }
+.badge.accent { border-color: var(--accent-border); color: var(--accent); background: var(--accent-dim); }
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text3);
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+.status-dot.ok { background: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+.status-dot.err { background: var(--red); }
+
+/* THEME TOGGLE */
+.theme-toggle {
+  width: 36px;
+  height: 20px;
+  border-radius: 100px;
+  border: 1px solid var(--border2);
+  background: var(--surface2);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.theme-toggle::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  top: 2px;
+  left: 2px;
+  background: var(--text2);
+  transition: transform 0.2s, background 0.2s;
+}
+[data-theme="light"] .theme-toggle::after {
+  transform: translateX(16px);
+  background: var(--accent);
+}
+.theme-icon {
+  font-size: 13px;
+  margin-left: 4px;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* ── LAYOUT ── */
+.wrap { max-width: 1400px; margin: 0 auto; padding: 20px 20px 0; }
+.cols {
+  display: grid;
+  grid-template-columns: 310px 1fr 300px;
+  gap: 16px;
+  align-items: start;
+}
+.col { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── CARDS ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.25s, border-color 0.25s;
+}
+.card-accent-top {
+  position: relative;
+  overflow: hidden;
+}
+.card-accent-top::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 12px 12px 0 0;
+}
+.card.c-blue::after { background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.6; }
+.card.c-green::after { background: linear-gradient(90deg, transparent, var(--green), transparent); opacity: 0.6; }
+.card.c-amber::after { background: linear-gradient(90deg, transparent, var(--amber), transparent); opacity: 0.6; }
+.card.c-purple::after { background: linear-gradient(90deg, transparent, var(--purple), transparent); opacity: 0.6; }
+
+.card-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.card-title-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text3);
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.card-title-dot.live { background: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+.card-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  margin-left: 2px;
+}
+.divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+/* ── INPUTS ── */
+.field { margin-bottom: 10px; }
+.field label {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text2);
+  letter-spacing: 0.04em;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+.field input, .field select {
+  width: 100%;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  color: var(--heading);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--input-focus);
+}
+.row { display: flex; gap: 8px; }
+.row .field { flex: 1; margin-bottom: 0; }
+
+/* ── BUTTONS ── */
+.btn {
+  width: 100%;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transition: opacity 0.15s, transform 0.1s, box-shadow 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.btn:not(:disabled):hover { opacity: 0.85; }
+
+.btn-primary { background: var(--accent); color: white; border-color: transparent; }
+.btn-danger  { background: var(--red); color: white; border-color: transparent; }
+.btn-green   { background: var(--green); color: #001a08; border-color: transparent; }
+.btn-amber   { background: var(--amber); color: #1a0a00; border-color: transparent; }
+.btn-ghost   { background: transparent; border-color: var(--border2); color: var(--text2); }
+.btn-ghost:not(:disabled):hover { background: var(--surface2); }
+
+.btn-outline-blue   { background: var(--accent-dim); border-color: var(--accent-border); color: var(--accent); }
+.btn-outline-green  { background: var(--green-dim); border-color: var(--green-border); color: var(--green); }
+.btn-outline-amber  { background: var(--amber-dim); border-color: var(--amber-border); color: var(--amber); }
+.btn-outline-red    { background: var(--red-dim); border-color: var(--red-border); color: var(--red); }
+.btn-outline-purple { background: var(--purple-dim); border-color: rgba(167,139,250,0.25); color: var(--purple); }
+[data-theme="light"] .btn-outline-purple { border-color: rgba(124,58,237,0.25); }
+
+.btn-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.btn-row .btn { flex: 1; }
+
+/* ── STATUS BAR ── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  margin-top: 8px;
+  color: var(--text);
+  min-height: 36px;
+}
+.status-icon { font-size: 13px; }
+.conn-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text3);
+  transition: background 0.3s, box-shadow 0.3s;
+  flex-shrink: 0;
+}
+.conn-dot.active { background: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+
+/* ── FEEDBACK ── */
+.feedback {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-align: center;
+  padding: 5px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+  display: none;
+}
+.feedback.ok { display: block; color: var(--green); background: var(--green-dim); border: 1px solid var(--green-border); }
+.feedback.er { display: block; color: var(--red); background: var(--red-dim); border: 1px solid var(--red-border); }
+
+/* ── METRIC ROWS ── */
+.metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.metric-cell {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.metric-val { font-family: var(--mono); font-size: 16px; color: var(--heading); line-height: 1; margin-bottom: 4px; }
+.metric-unit { font-size: 9px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; }
+.metric-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.metric-cell.accent .metric-val { color: var(--accent); }
+.metric-cell.green  .metric-val { color: var(--green); }
+.metric-cell.amber  .metric-val { color: var(--amber); }
+.metric-cell.purple .metric-val { color: var(--purple); }
+
+/* ── ACTIVE MOTOR BOX ── */
+.motor-highlight {
+  background: var(--amber-dim);
+  border: 1px solid var(--amber-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.motor-hl-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+.motor-hl-val { font-family: var(--mono); font-size: 18px; color: var(--amber); }
+
+/* ── TACH BOX ── */
+.tach-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.tach-box-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+.tach-box-label { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.tach-box-val { font-family: var(--mono); font-size: 20px; color: var(--accent); }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; }
+.chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  color: var(--accent);
+}
+.chip.neg { background: var(--red-dim); border-color: var(--red-border); color: var(--red); }
+
+/* ── FLUX CAPTURE ── */
+.flux-capture-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.flux-cap-title { font-size: 9px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+.flux-cap-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.flux-cap-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 10px 10px;
+}
+.flux-cap-lbl { font-size: 8px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+.flux-cap-val { font-family: var(--mono); font-size: 15px; color: var(--heading); }
+.flux-cap-val.set-i { color: var(--accent); }
+.flux-cap-val.set-f { color: var(--amber); }
+.flux-delta-row { display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 11px; color: var(--text3); padding: 4px 0 0; }
+.flux-delta-val { font-size: 13px; color: var(--purple); }
+
+/* ── SUGGEST BOX ── */
+.suggest-box { display: none; background: var(--amber-dim); border: 1px solid var(--amber-border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+.suggest-box.on { display: block; }
+.suggest-title { font-size: 9px; color: var(--amber); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+.suggest-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-family: var(--mono); font-size: 11px; cursor: pointer; padding: 5px 7px; border-radius: 5px; }
+.suggest-row:hover { background: rgba(245,166,35,0.07); }
+.suggest-apply { font-size: 9px; color: var(--amber); border: 1px solid var(--amber-border); padding: 1px 7px; border-radius: 4px; margin-left: auto; }
+
+/* ── TACHOMETER DISPLAY ── */
+.tach-main { text-align: center; padding: 16px 6px 10px; }
+.tach-label { font-size: 10px; letter-spacing: 0.12em; color: var(--text3); text-transform: uppercase; margin-bottom: 8px; }
+.tach-value {
+  font-family: var(--mono);
+  font-size: 44px;
+  font-weight: 300;
+  line-height: 1;
+  color: var(--accent);
+  transition: color 0.3s;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tach-value.stale { color: var(--text3); font-size: 32px; }
+.tach-unit { font-size: 10px; color: var(--text3); margin-top: 5px; }
+.gauge-wrap { display: flex; justify-content: center; margin: 10px 0 6px; }
+
+/* ── DIRECTION BADGE ── */
+.dir-badge {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+.dir-badge.fwd { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+.dir-badge.rev { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
+.dir-badge.non { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+
+/* ── TARGET DISPLAY ── */
+.target-display {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.ttd-g { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ttd-lbl { font-size: 8px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.ttd-v { font-size: 18px; line-height: 1; }
+.arr { font-size: 14px; color: var(--text3); }
+
+/* ── PROGRESS ── */
+.progress-wrap { margin: 10px 0 8px; }
+.progress-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.progress-track { background: var(--surface2); border: 1px solid var(--border); border-radius: 100px; height: 6px; overflow: hidden; }
+.progress-fill { height: 100%; width: 0%; background: var(--green); border-radius: 100px; transition: width 0.3s ease, background 0.3s; }
+
+/* ── RUN INFO ROW ── */
+.run-info-row {
+  display: flex;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+}
+.run-info-cell {
+  flex: 1;
+  padding: 8px 10px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.run-info-cell:last-child { border-right: none; }
+.run-info-label { font-size: 8px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+.run-info-val { font-size: 13px; }
+
+/* ── PULSE ANIMATION ── */
+@keyframes pulse-live {
+  0% { box-shadow: 0 0 0 0 rgba(62,207,142,0.5); }
+  70% { box-shadow: 0 0 0 6px rgba(62,207,142,0); }
+  100% { box-shadow: 0 0 0 0 rgba(62,207,142,0); }
+}
+.live-indicator {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  animation: pulse-live 1.3s ease-out infinite;
+  display: none;
+  flex-shrink: 0;
+}
+.live-indicator.on { display: inline-block; }
+.live-tag {
+  display: none;
+  font-family: var(--mono);
+  font-size: 9px;
+  border: 1px solid var(--green-border);
+  color: var(--green);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--green-dim);
+  margin-left: 4px;
+}
+
+/* ── RAMP SECTION ── */
+.ramp-bar-wrap { margin: 10px 0 6px; }
+.ramp-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.ramp-track { background: var(--surface2); border: 1px solid var(--border); border-radius: 100px; height: 8px; overflow: hidden; }
+.ramp-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--green), var(--amber), var(--red)); border-radius: 100px; transition: width 0.15s linear; }
+
+.ramp-hold-bar { display: none; margin: 8px 0; }
+.ramp-hold-bar.on { display: block; }
+.ramp-hold-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+.ramp-hold-track { background: var(--surface2); border: 1px solid var(--amber-border); border-radius: 100px; height: 6px; overflow: hidden; }
+.ramp-hold-fill { height: 100%; width: 100%; background: var(--amber); border-radius: 100px; transition: width 0.1s linear; }
+
+.ramp-live-strip { display: none; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 8px; padding: 10px 12px; margin: 8px 0; }
+.ramp-live-strip.on { display: block; }
+.rls-title { font-size: 9px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
+.rls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.rls-cell { text-align: center; }
+.rls-lbl { font-size: 8px; color: var(--text3); letter-spacing: 0.07em; text-transform: uppercase; margin-bottom: 3px; }
+.rls-val { font-family: var(--mono); font-size: 14px; color: var(--heading); }
+
+.rv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+.rvc {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 10px;
+}
+.rvc.amber-hl { border-color: var(--amber-border); background: var(--amber-dim); }
+.rvc.amber-hl .rvv { color: var(--amber); }
+.rvc.accent-hl { border-color: var(--accent-border); background: var(--accent-dim); }
+.rvc.accent-hl .rvv { color: var(--accent); }
+.rvc.peak { grid-column: 1/-1; border-color: var(--accent-border); background: var(--accent-dim); }
+.rvc.peak .rvv { color: var(--accent); font-size: 26px; }
+.rvl { font-size: 8px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 3px; }
+.rvv { font-family: var(--mono); font-size: 20px; color: var(--heading); }
+.rvu { font-size: 9px; color: var(--text3); }
+
+/* ── LOG ── */
+.log {
+  background: var(--log-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  height: 130px;
+  overflow-y: auto;
+  margin-top: 10px;
+  color: var(--text2);
+  line-height: 1.8;
+}
+.log .ok  { color: var(--green); }
+.log .er  { color: var(--red); }
+.log .inf { color: var(--accent); }
+.log .hx  { color: #e2b96a; }
+.log .hx2 { color: #8aabbc; }
+.log .db  { color: var(--purple); }
+.log .rmp { color: var(--amber); }
+.log .flx { color: #c084fc; }
+
+/* ── WARNING NOTICE ── */
+.notice {
+  font-size: 10px;
+  color: var(--text3);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.notice strong { color: var(--heading); }
+
+/* ── QUICK LOOKUP ── */
+.lookup-wrap { position: relative; }
+.lookup-row { display: flex; gap: 0; }
+.lookup-input {
+  flex: 1;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+  padding: 8px 10px;
+  color: var(--heading);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.lookup-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--input-focus); }
+.lookup-btn { border-radius: 0 8px 8px 0; width: auto; padding: 8px 14px; }
 .lookup-dropdown {
-  display:none; position:absolute; top:100%; left:0; right:0; z-index:200;
-  background:var(--panel); border:1px solid var(--accent);
-  border-top:none; border-radius:0 0 7px 7px;
-  max-height:180px; overflow-y:auto;
-  box-shadow:0 8px 24px rgba(0,0,0,.5);
+  display: none;
+  position: absolute;
+  top: 100%; left: 0; right: 0;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--accent-border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
 }
-.lookup-dropdown.on { display:block; }
+.lookup-dropdown.on { display: block; }
 .lookup-dd-item {
-  display:flex; align-items:center; gap:8px;
-  padding:7px 10px; cursor:pointer;
-  font-family:var(--mono); font-size:11px;
-  border-bottom:1px solid rgba(26,42,58,.6);
-  transition:background .12s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
 }
-.lookup-dd-item:last-child { border-bottom:none; }
-.lookup-dd-item:hover, .lookup-dd-item.active { background:rgba(0,229,255,.08); }
-.lookup-dd-motor { color:var(--gold); flex:1; }
-.lookup-dd-motor mark { background:none; color:var(--accent); font-weight:700; }
-.lookup-dd-type {
-  font-size:8px; text-transform:uppercase; letter-spacing:.08em;
-  padding:1px 5px; border-radius:3px;
+.lookup-dd-item:last-child { border-bottom: none; }
+.lookup-dd-item:hover, .lookup-dd-item.active { background: var(--accent-dim); }
+.lookup-dd-motor { color: var(--amber); flex: 1; }
+.lookup-dd-motor mark { background: none; color: var(--accent); font-weight: 600; }
+.lookup-dd-type { font-size: 8px; text-transform: uppercase; letter-spacing: 0.07em; padding: 2px 6px; border-radius: 4px; }
+.lookup-dd-type.ramp { color: var(--amber); background: var(--amber-dim); border: 1px solid var(--amber-border); }
+.lookup-dd-type.full { color: var(--accent); background: var(--accent-dim); border: 1px solid var(--accent-border); }
+.lookup-dd-type.airgap { color: var(--green); background: var(--green-dim); border: 1px solid var(--green-border); }
+.lookup-dd-type.registration { color: var(--text3); background: var(--surface2); border: 1px solid var(--border); }
+.lookup-dd-rpm { font-size: 10px; color: var(--accent); }
+.lookup-dd-empty { padding: 12px; font-family: var(--mono); font-size: 10px; color: var(--text3); text-align: center; }
+
+/* ── DB TABLE ── */
+.db-card { grid-column: 1/-1; }
+.db-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
-.lookup-dd-type.ramp { color:var(--gold); background:rgba(251,191,36,.12); border:1px solid rgba(251,191,36,.25); }
-.lookup-dd-type.full { color:var(--accent); background:rgba(0,229,255,.08); border:1px solid rgba(0,229,255,.2); }
-.lookup-dd-type.airgap { color:var(--accent3); background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.2); }
-.lookup-dd-type.registration { color:var(--muted); background:rgba(74,96,112,.1); border:1px solid rgba(74,96,112,.2); }
-.lookup-dd-rpm { font-size:10px; color:var(--accent); }
-.lookup-dd-empty { padding:10px; font-family:var(--mono); font-size:10px; color:var(--muted); text-align:center; }
+.db-filter {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  color: var(--heading);
+  font-family: var(--mono);
+  font-size: 11px;
+  outline: none;
+  width: 200px;
+  transition: border-color 0.15s;
+}
+.db-filter:focus { border-color: var(--accent); }
+.db-count { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-left: auto; }
+.db-table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10px; }
+th {
+  background: var(--tbl-head);
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-size: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  font-weight: 600;
+}
+td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  white-space: nowrap;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--tbl-hover); }
+td.c-green { color: var(--green); }
+td.c-red   { color: var(--red); }
+td.c-amber { color: var(--amber); }
+td.c-blue  { color: var(--accent); }
+td.c-purple{ color: var(--purple); }
+.db-empty { text-align: center; padding: 30px; color: var(--text3); font-size: 11px; }
+.dbb { font-family: var(--mono); font-size: 9px; padding: 2px 7px; border-radius: 4px; }
+.dbb.fwd { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+.dbb.rev { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
+.del-btn {
+  background: none;
+  border: 1px solid var(--red-border);
+  color: var(--red);
+  border-radius: 4px;
+  padding: 2px 7px;
+  cursor: pointer;
+  font-size: 9px;
+  font-family: var(--mono);
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s;
+}
+.del-btn:hover { background: var(--red-dim); opacity: 1; }
+
+/* ── MODAL ── */
+.modal-overlay { display: none; position: fixed; inset: 0; background: var(--modal-overlay); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(6px); }
+.modal-overlay.on { display: flex; }
+.modal {
+  background: var(--modal-bg);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+[data-theme="light"] .modal { box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+.modal-title { font-size: 15px; font-weight: 600; color: var(--amber); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.modal-body { font-size: 12px; color: var(--text); line-height: 1.65; margin-bottom: 20px; }
+.modal-motor { font-family: var(--mono); font-size: 16px; color: var(--amber); margin: 6px 0; }
+.modal-btns { display: flex; gap: 8px; }
+.modal-btns .btn { flex: 1; }
+
+/* ── SLAVE BADGE ── */
+#slaveBadge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 100px;
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  background: var(--badge-bg);
+  transition: all 0.3s;
+}
+
+/* ── RAMP STATE LABEL ── */
+#rampStateLbl {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  margin: 6px 0 8px;
+}
+
+/* ── COPY LOG BTN ── */
+.copy-log-btn {
+  margin-top: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text3);
+  font-size: 10px;
+  padding: 5px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--mono);
+  width: 100%;
+  transition: background 0.15s;
+}
+.copy-log-btn:hover { background: var(--surface2); }
+
+/* ── SLAVE SECTION TITLE ── */
+.slave-can { display: flex; gap: 8px; margin-bottom: 10px; }
+.slave-can .field { flex: 1; margin-bottom: 0; }
+
+/* ── FULL-WIDTH COLS ADJUSTMENTS ── */
+.full-width-grid {
+  display: grid;
+  grid-template-columns: 310px 1fr 300px;
+  gap: 16px;
+  margin-top: 16px;
+}
 </style>
 </head>
 <body>
-<div class="wrap">
 
 <!-- Duplicate Motor Modal -->
 <div class="modal-overlay" id="dupModal">
   <div class="modal">
     <div class="modal-title">⚠ Motor Already Exists</div>
-    <div class="modal-body">Motor <span class="modal-motor" id="dupMotorName"></span> is already in the database.<br>Add a <strong style="color:var(--accent2);">new record</strong> or <strong style="color:var(--danger);">replace</strong> the latest?</div>
+    <div class="modal-body">Motor <span class="modal-motor" id="dupMotorName"></span> is already in the database.<br>Add a <strong style="color:var(--amber);">new record</strong> or <strong style="color:var(--red);">replace</strong> the latest?</div>
     <div class="modal-btns">
-      <button class="btn" style="background:#1e293b;border:1px solid var(--border);color:var(--muted);" onclick="closeDupModal()">Cancel</button>
-      <button class="btn btn-rn" onclick="confirmDupAdd()">Add New</button>
-      <button class="btn btn-d"  onclick="confirmDupReplace()">Replace Latest</button>
+      <button class="btn btn-ghost" onclick="closeDupModal()">Cancel</button>
+      <button class="btn btn-outline-green" onclick="confirmDupAdd()">Add New</button>
+      <button class="btn btn-danger" onclick="confirmDupReplace()">Replace Latest</button>
     </div>
   </div>
 </div>
 
-<header>
-  <h1><span class="dot" id="connDot"></span>TMCS Airgap Control</h1>
-  <span class="badge">MASTER</span>
-  <span class="badge" id="slaveBadge" style="border-color:var(--muted);color:var(--muted);">SLAVE — —</span>
-  <div class="api-status"><div class="api-dot" id="apiDot"></div><span id="apiStatus">DB offline</span></div>
-</header>
-
-<div class="cols">
-<!-- ═══ LEFT ═══ -->
-<div style="display:flex;flex-direction:column;gap:12px;">
-  <div class="panel">
-    <div class="pt">Serial Connection</div>
-    <div class="btn-row">
-      <button class="btn btn-c" id="btnConnect" onclick="connect()">Connect</button>
-      <button class="btn btn-d" id="btnDisc"    onclick="disconnect()" disabled>Disconnect</button>
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">
+    <div class="header-logo-icon">⚡</div>
+    <div>
+      <div class="header-title">TMCS Airgap Control</div>
+      <div class="header-subtitle">MASTER CONTROLLER</div>
     </div>
-    <div class="sb"><span id="statusIcon">○</span><span id="statusText">Idle</span></div>
+  </div>
+  <div class="header-badges">
+    <span class="badge accent">MASTER</span>
+    <span id="slaveBadge">SLAVE — —</span>
+  </div>
+  <div class="header-status">
+    <div class="status-dot" id="apiDot"></div>
+    <span id="apiStatus">DB offline</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-left:8px;">
+    <span class="theme-icon" id="themeIcon">☀</span>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle light/dark"></button>
+  </div>
+</div>
+
+<div class="wrap">
+<div class="cols">
+
+<!-- ══════ LEFT COLUMN ══════ -->
+<div class="col">
+
+  <!-- Serial Connection -->
+  <div class="card card-accent-top c-blue">
+    <div class="card-title">
+      <span class="conn-dot" id="connDot"></span>
+      Serial Connection
+    </div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6;">
+      Connects to <strong style="color:var(--accent);">TMCS devices only</strong> (STM VID 0x0483 · 0x5740)
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnConnect" onclick="connect()">Connect TMCS</button>
+      <button class="btn btn-danger" id="btnDisc" onclick="disconnect()" disabled>Disconnect</button>
+    </div>
+    <div class="status-bar">
+      <span class="status-icon" id="statusIcon">○</span>
+      <span id="statusText">Idle — click Connect TMCS</span>
+    </div>
   </div>
 
-  <div class="panel g">
-    <div class="pt">Motor Registration</div>
-    <div class="row">
+  <!-- Motor Registration -->
+  <div class="card card-accent-top c-amber">
+    <div class="card-title">Motor Registration</div>
+    <div class="row" style="margin-bottom:10px;">
       <div class="field"><label>Motor Number / ID</label><input id="motorNo" placeholder="MTR-001" oninput="onMotorNoChange()"></div>
       <div class="field"><label>Notes</label><input id="motorNotes" placeholder="batch, date…"></div>
     </div>
-    <button class="btn btn-gd" onclick="registerMotor()">⊕ Register Motor in DB</button>
-    <div class="sf" id="motorFb"></div>
-    <hr class="divider">
-    <div class="mid-box">
-      <div><div class="mid-label">Active Motor</div><div class="mid-val" id="activeMotorDisp" style="color:var(--gold);">— not set —</div></div>
-      <div style="text-align:right;"><div class="mid-label">Total Tach Applied</div><div class="mid-val" id="totalTachDisp" style="color:var(--accent);">0</div></div>
-    </div>
-    <div class="tac-box">
-      <div class="tac-row">
-        <div class="tac-label">Cumulative Airgap Moves (this session)</div>
-        <div class="tac-val" id="tachCumDisp" style="color:var(--accent);">0 <span style="font-size:11px;color:var(--muted);">counts</span></div>
+    <button class="btn btn-amber" onclick="registerMotor()">⊕ Register Motor in DB</button>
+    <div class="feedback" id="motorFb"></div>
+    <div class="divider"></div>
+
+    <div class="motor-highlight">
+      <div>
+        <div class="motor-hl-label">Active Motor</div>
+        <div class="motor-hl-val" id="activeMotorDisp">— not set —</div>
       </div>
-      <div class="chips" id="tachChips"><span style="font-size:10px;color:var(--muted);">No moves yet</span></div>
+      <div style="text-align:right;">
+        <div class="motor-hl-label">Total Tach Applied</div>
+        <div class="motor-hl-val" style="color:var(--accent);" id="totalTachDisp">0</div>
+      </div>
     </div>
-    <button class="btn btn-sv" id="btnSaveAll" onclick="saveAll()" disabled>💾 Save to Database</button>
-    <div class="sf" id="airgapFb"></div>
+
+    <div class="tach-box">
+      <div class="tach-box-row">
+        <div class="tach-box-label">Cumulative Airgap Moves (session)</div>
+        <div class="tach-box-val" id="tachCumDisp">0 <span style="font-size:11px;color:var(--text3);">counts</span></div>
+      </div>
+      <div class="chips" id="tachChips"><span style="font-size:10px;color:var(--text3);">No moves yet</span></div>
+    </div>
+
+    <button class="btn btn-outline-green" id="btnSaveAll" onclick="saveAll()" disabled>💾 Save to Database</button>
+    <div class="feedback" id="airgapFb"></div>
   </div>
 
-  <div class="panel">
-    <div class="pt">R / L / Flux</div>
-    <button class="btn btn-rl" id="btnRL" onclick="measureRL()" disabled style="margin-bottom:8px;">Measure R &amp; L</button>
-    <div class="m3">
-      <div class="mc"><div class="v" id="rVal">—</div><div class="u">mΩ</div></div>
-      <div class="mc"><div class="v" id="lVal">—</div><div class="u">µH</div></div>
-      <div class="mc"><div class="v" id="fluxVal">—</div><div class="u">mWb</div></div>
+  <!-- R / L / Flux -->
+  <div class="card card-accent-top c-purple">
+    <div class="card-title">R / L / Flux</div>
+    <button class="btn btn-primary" id="btnRL" onclick="measureRL()" disabled style="margin-bottom:10px;">Measure R &amp; L</button>
+    <div class="metric-grid">
+      <div class="metric-cell accent"><div class="metric-val" id="rVal">—</div><div class="metric-unit">mΩ</div></div>
+      <div class="metric-cell accent"><div class="metric-val" id="lVal">—</div><div class="metric-unit">µH</div></div>
+      <div class="metric-cell purple"><div class="metric-val" id="fluxVal">—</div><div class="metric-unit">mWb</div></div>
     </div>
-    <hr class="divider">
-    <div class="row">
+    <div class="divider"></div>
+
+    <div class="flux-capture-box">
+      <div class="flux-cap-title">Flux Linkage — Initial &amp; Final Capture</div>
+      <div class="flux-cap-row">
+        <div class="flux-cap-cell">
+          <div class="flux-cap-lbl">Initial (before adjust)</div>
+          <div class="flux-cap-val set-i" id="fluxInitDisp">— mWb</div>
+          <div style="font-size:8px;color:var(--text3);margin-top:2px;" id="fluxInitTs"></div>
+        </div>
+        <div class="flux-cap-cell">
+          <div class="flux-cap-lbl">Final (after adjust)</div>
+          <div class="flux-cap-val set-f" id="fluxFinalDisp">— mWb</div>
+          <div style="font-size:8px;color:var(--text3);margin-top:2px;" id="fluxFinalTs"></div>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-bottom:8px;">
+        <button class="btn btn-outline-blue" id="btnCaptureI" onclick="captureFluxInitial()">⬇ Capture Initial</button>
+        <button class="btn btn-outline-amber" id="btnCaptureF" onclick="captureFluxFinal()">⬇ Capture Final</button>
+      </div>
+      <div class="flux-delta-row">
+        <span>Δ (final − initial)</span>
+        <span class="flux-delta-val" id="fluxDeltaDisp">—</span>
+      </div>
+    </div>
+
+    <div class="row" style="margin-bottom:8px;">
       <div class="field"><label>Current (A)</label><input id="current" value="20"></div>
       <div class="field"><label>ERPM</label><input id="erpm" value="2000"></div>
     </div>
-    <div class="row">
+    <div class="row" style="margin-bottom:8px;">
       <div class="field"><label>Duty</label><input id="duty" value="0.3"></div>
       <div class="field"><label>R (mΩ)</label><input id="res" value="9.05"></div>
     </div>
     <div class="field"><label>L (µH)</label><input id="ind" value="37.1"></div>
-    <button class="btn btn-fx" id="btnFlux" onclick="runFlux()" disabled>Measure Flux Linkage</button>
+    <button class="btn btn-outline-purple" id="btnFlux" onclick="runFlux()" disabled>Measure Flux Linkage</button>
   </div>
-</div><!-- /left -->
 
-<!-- ═══ MIDDLE ═══ -->
-<div style="display:flex;flex-direction:column;gap:12px;">
-  <div class="panel">
-    <div class="pt">Slave CAN Config <span class="tag">0x22</span></div>
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <div class="field" style="flex:1;margin-bottom:0;"><label>Slave CAN ID</label><input id="slaveId" value="6927"></div>
-      <div class="field" style="flex:1;margin-bottom:0;"><label>Poll Interval (ms)</label><input id="pollMs" value="200"></div>
+</div><!-- /left col -->
+
+<!-- ══════ MIDDLE COLUMN ══════ -->
+<div class="col">
+
+  <!-- Slave CAN Config -->
+  <div class="card card-accent-top c-blue">
+    <div class="card-title">
+      Slave CAN Config
+      <span class="card-tag">0x22</span>
+    </div>
+    <div class="slave-can">
+      <div class="field"><label>Slave CAN ID</label><input id="slaveId" value="6927"></div>
+      <div class="field"><label>Poll Interval (ms)</label><input id="pollMs" value="200"></div>
     </div>
     <div class="btn-row">
-      <button class="btn btn-rl" id="btnPollStart" onclick="startPoll()" disabled>▶ Start Polling</button>
-      <button class="btn btn-d"  id="btnPollStop"  onclick="stopPoll()"  disabled>■ Stop</button>
+      <button class="btn btn-primary" id="btnPollStart" onclick="startPoll()" disabled>▶ Start Polling</button>
+      <button class="btn btn-danger" id="btnPollStop" onclick="stopPoll()" disabled>■ Stop</button>
     </div>
   </div>
 
-  <div class="panel">
-    <div class="pt">Tachometer <span id="liveDot" class="tag" style="display:none;border-color:var(--accent3);color:var(--accent3);">● LIVE</span></div>
-    <div class="th">
-      <div class="tl">Slave Tachometer</div>
-      <div class="tv stale" id="tachVal">– – –</div>
-      <div class="tu" id="tachUnit">waiting…</div>
+  <!-- Tachometer -->
+  <div class="card card-accent-top c-blue">
+    <div class="card-title">
+      <span class="card-title-dot" id="liveDotInner"></span>
+      Tachometer
+      <span class="live-tag" id="liveDot">● LIVE</span>
     </div>
-    <div class="gw">
+    <div class="tach-main">
+      <div class="tach-label">Slave Tachometer</div>
+      <div class="tach-value stale" id="tachVal">– – –</div>
+      <div class="tach-unit" id="tachUnit">waiting…</div>
+    </div>
+    <div class="gauge-wrap">
       <svg width="190" height="90" viewBox="0 0 220 105">
-        <path d="M 25 105 A 85 85 0 0 1 195 105" fill="none" stroke="#1e3040" stroke-width="12" stroke-linecap="round"/>
-        <path id="gaugeFill" d="M 25 105 A 85 85 0 0 1 195 105" fill="none" stroke="#00e5ff" stroke-width="12"
+        <path d="M 25 105 A 85 85 0 0 1 195 105" fill="none" stroke="var(--gauge-track)" stroke-width="12" stroke-linecap="round"/>
+        <path id="gaugeFill" d="M 25 105 A 85 85 0 0 1 195 105" fill="none" stroke="var(--accent)" stroke-width="12"
               stroke-linecap="round" stroke-dasharray="0 267" style="transition:stroke-dasharray .4s ease,stroke .4s ease;"/>
-        <text x="18"  y="100" fill="#2a5060" font-family="Share Tech Mono,monospace" font-size="9">0</text>
-        <text x="170" y="100" fill="#2a5060" font-family="Share Tech Mono,monospace" font-size="9">MAX</text>
-        <text id="gaugePct" x="110" y="84" text-anchor="middle" fill="#2a5060" font-family="Share Tech Mono,monospace" font-size="11">0%</text>
+        <text x="18"  y="100" fill="var(--text3)" font-family="JetBrains Mono,monospace" font-size="9">0</text>
+        <text x="170" y="100" fill="var(--text3)" font-family="JetBrains Mono,monospace" font-size="9">MAX</text>
+        <text id="gaugePct" x="110" y="84" text-anchor="middle" fill="var(--text3)" font-family="JetBrains Mono,monospace" font-size="11">0%</text>
       </svg>
     </div>
-    <div class="sm">
-      <div class="smc"><div class="sl">Input Voltage</div><div class="sv" id="voltVal">—</div></div>
-      <div class="smc"><div class="sl">Fault Code</div><div class="sv" id="nrVal">—</div></div>
-      <div class="smc"><div class="sl">Peak Tach</div><div class="sv" id="peakTach">—</div></div>
-      <div class="smc"><div class="sl">Packets Rx</div><div class="sv" id="pktCount">0</div></div>
+    <div class="metric-2col">
+      <div class="metric-cell"><div class="metric-val" id="voltVal">—</div><div class="metric-unit">Input Voltage</div></div>
+      <div class="metric-cell"><div class="metric-val" id="nrVal">—</div><div class="metric-unit">Fault Code</div></div>
+      <div class="metric-cell accent"><div class="metric-val" id="peakTach">—</div><div class="metric-unit">Peak Tach</div></div>
+      <div class="metric-cell"><div class="metric-val" id="pktCount">0</div><div class="metric-unit">Packets Rx</div></div>
     </div>
   </div>
 
-  <div class="panel gn">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <div class="pt" style="margin-bottom:0;">Run Motor — Airgap Adjust</div>
-      <div class="rai" id="runDot"></div>
+  <!-- Run Motor -->
+  <div class="card card-accent-top c-green">
+    <div class="card-title">
+      <div class="live-indicator" id="runDot"></div>
+      Run Motor — Airgap Adjust
     </div>
+
     <div class="suggest-box" id="suggestBox">
       <div class="suggest-title">⚡ Flux Match — Suggested Tach Values</div>
       <div id="suggestRows"></div>
     </div>
+
     <div class="row" style="margin-bottom:10px;">
       <div class="field"><label>Drive Duty (0.0 – 1.0)</label><input id="runDuty" value="0.10" oninput="updateRunLabel()"></div>
-      <div class="field"><label>Tach Offset (+ reduce / − increase airgap)</label><input id="tachTarget" value="200" oninput="updateRunLabel()"></div>
+      <div class="field"><label>Tach Offset (+ reduce / − increase)</label><input id="tachTarget" value="200" oninput="updateRunLabel()"></div>
     </div>
-    <div class="ttd">
-      <div class="ttd-g"><div class="ttd-lbl">Start</div><div class="ttd-v" id="runStartTach" style="color:var(--muted);">—</div></div>
+
+    <div class="target-display">
+      <div class="ttd-g">
+        <div class="ttd-lbl">Start</div>
+        <div class="ttd-v" id="runStartTach" style="color:var(--text3);">—</div>
+      </div>
       <div class="arr">→</div>
       <div class="ttd-g">
         <div class="ttd-lbl">Target</div>
         <div style="display:flex;align-items:center;">
-          <div class="ttd-v" id="runTargetTach" style="color:var(--accent2);">—</div>
-          <span id="dirBadge" class="dir-b non">—</span>
+          <div class="ttd-v" id="runTargetTach" style="color:var(--amber);">—</div>
+          <span id="dirBadge" class="dir-badge non">—</span>
         </div>
       </div>
       <div class="arr">●</div>
-      <div class="ttd-g"><div class="ttd-lbl">Current</div><div class="ttd-v" id="runCurrentTach" style="color:var(--accent);">—</div></div>
+      <div class="ttd-g">
+        <div class="ttd-lbl">Current</div>
+        <div class="ttd-v" id="runCurrentTach" style="color:var(--accent);">—</div>
+      </div>
     </div>
-    <div class="pw">
-      <div class="pr"><span>Progress</span><span id="runProgLbl">—</span></div>
-      <div class="pt2"><div class="pf" id="runProgBar"></div></div>
-    </div>
-    <div class="rir">
-      <div class="ric"><div class="ricl">Remaining</div><div class="ricv" id="runRemaining" style="color:var(--purple);">—</div></div>
-      <div class="ric"><div class="ricl">Duty Set</div><div class="ricv" id="runCurrentSet" style="color:var(--accent3);">—</div></div>
-      <div class="ric"><div class="ricl">State</div><div class="ricv" id="runState" style="color:var(--muted);">IDLE</div></div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-rn" id="btnRunStart" onclick="startRun()"     disabled>▶ Run → Tach Target</button>
-      <button class="btn btn-d"  id="btnRunStop"  onclick="stopRun(false)" disabled>■ Stop</button>
-    </div>
-    <div style="margin-top:4px;font-size:10px;text-align:center;color:var(--muted);" id="runStatus">Connect and start polling first</div>
-    <div class="log" id="log"></div>
-    <button class="btn" onclick="copyLog()" style="margin-top:5px;background:#1e293b;border:1px solid var(--border);color:var(--muted);font-size:10px;padding:4px;">📋 Copy Log</button>
-  </div>
-</div><!-- /middle -->
 
-<!-- ═══ RIGHT — RAMP ═══ -->
-<div style="display:flex;flex-direction:column;gap:12px;">
-  <div class="panel" style="border-color:rgba(251,191,36,.22);">
-    <div class="pt" style="color:var(--gold);">
-      <span class="dot" id="rampDot" style="background:var(--muted);"></span>
+    <div class="progress-wrap">
+      <div class="progress-labels"><span>Progress</span><span id="runProgLbl">—</span></div>
+      <div class="progress-track"><div class="progress-fill" id="runProgBar"></div></div>
+    </div>
+
+    <div class="run-info-row">
+      <div class="run-info-cell">
+        <div class="run-info-label">Remaining</div>
+        <div class="run-info-val" id="runRemaining" style="color:var(--purple);">—</div>
+      </div>
+      <div class="run-info-cell">
+        <div class="run-info-label">Duty Set</div>
+        <div class="run-info-val" id="runCurrentSet" style="color:var(--green);">—</div>
+      </div>
+      <div class="run-info-cell">
+        <div class="run-info-label">State</div>
+        <div class="run-info-val" id="runState" style="color:var(--text3);">IDLE</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-green" id="btnRunStart" onclick="startRun()" disabled>▶ Run → Tach Target</button>
+      <button class="btn btn-danger" id="btnRunStop" onclick="stopRun(false)" disabled>■ Stop</button>
+    </div>
+    <div style="margin-top:5px;font-size:10px;text-align:center;color:var(--text3);" id="runStatus">Connect and start polling first</div>
+    <div class="log" id="log"></div>
+    <button class="copy-log-btn" onclick="copyLog()">📋 Copy Log</button>
+  </div>
+
+</div><!-- /middle col -->
+
+<!-- ══════ RIGHT COLUMN ══════ -->
+<div class="col">
+
+  <!-- Master Ramp Test -->
+  <div class="card card-accent-top c-amber">
+    <div class="card-title">
+      <span class="conn-dot" id="rampDot"></span>
       Master Ramp Test
     </div>
-    <div style="font-size:10px;color:var(--muted);margin-bottom:8px;line-height:1.5;">
-      Ramps duty 0 → 95% on master TMCS, holds, captures <strong style="color:var(--gold);">peak RPM</strong> and values, then stops.
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;line-height:1.6;">
+      Ramps duty 0 → 95% on master TMCS, holds, captures <strong style="color:var(--amber);">peak RPM</strong> and values, then stops.
     </div>
+
     <div class="row" style="margin-bottom:8px;">
       <div class="field"><label>Ramp Duration (ms)</label><input id="rampDuration" value="3000"></div>
       <div class="field"><label>Step (ms)</label><input id="rampStep" value="50"></div>
@@ -396,12 +1140,15 @@ td.ok { color:var(--accent3); } td.er { color:var(--danger); } td.gd { color:var
     <div class="field"><label>Hold at 95% (ms)</label><input id="rampHold" value="3000"></div>
 
     <div class="ramp-bar-wrap">
-      <div class="ramp-lrow"><span>Ramp Progress</span><span id="rampDutyLbl">0.0%</span></div>
+      <div class="ramp-bar-labels"><span>Ramp Progress</span><span id="rampDutyLbl" style="color:var(--amber);">0.0%</span></div>
       <div class="ramp-track"><div class="ramp-fill" id="rampFill"></div></div>
     </div>
 
     <div class="ramp-hold-bar" id="rampHoldBar">
-      <div class="ramp-hold-lrow"><span style="color:var(--gold);">Holding @ 95%…</span><span id="rampHoldCountdown">3.0s</span></div>
+      <div class="ramp-hold-labels">
+        <span style="color:var(--amber);">Holding @ 95%…</span>
+        <span id="rampHoldCountdown">3.0s</span>
+      </div>
       <div class="ramp-hold-track"><div class="ramp-hold-fill" id="rampHoldFill"></div></div>
     </div>
 
@@ -415,69 +1162,91 @@ td.ok { color:var(--accent3); } td.er { color:var(--danger); } td.gd { color:var
       </div>
     </div>
 
-    <div id="rampStateLbl" style="text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);margin:5px 0 7px;">IDLE</div>
+    <div id="rampStateLbl">IDLE</div>
     <div class="btn-row">
-      <button class="btn btn-gd" id="btnRampStart" onclick="startRamp()" disabled>▶ Start Ramp</button>
-      <button class="btn btn-d"  id="btnRampStop"  onclick="stopRamp()"  disabled>■ Abort</button>
+      <button class="btn btn-amber" id="btnRampStart" onclick="startRamp()" disabled>▶ Start Ramp</button>
+      <button class="btn btn-danger" id="btnRampStop" onclick="stopRamp()" disabled>■ Abort</button>
     </div>
 
     <div class="rv-grid">
-      <div class="rvc hl"><div class="rvl">Motor Current @ Peak</div><div class="rvv" id="rv_mc">—</div><div class="rvu">A</div></div>
-      <div class="rvc hl"><div class="rvl">Battery Current @ Peak</div><div class="rvv" id="rv_bc">—</div><div class="rvu">A</div></div>
-      <div class="rvc hl"><div class="rvl">Duty @ Peak</div><div class="rvv" id="rv_duty">—</div><div class="rvu">%</div></div>
-      <div class="rvc hl"><div class="rvl">Voltage @ Peak</div><div class="rvv" id="rv_v">—</div><div class="rvu">V</div></div>
-      <div class="rvc hl" style="grid-column:1/-1;">
+      <div class="rvc amber-hl"><div class="rvl">Motor Current @ Peak</div><div class="rvv" id="rv_mc">—</div><div class="rvu">A</div></div>
+      <div class="rvc amber-hl"><div class="rvl">Battery Current @ Peak</div><div class="rvv" id="rv_bc">—</div><div class="rvu">A</div></div>
+      <div class="rvc amber-hl"><div class="rvl">Duty @ Peak</div><div class="rvv" id="rv_duty">—</div><div class="rvu">%</div></div>
+      <div class="rvc amber-hl"><div class="rvl">Voltage @ Peak</div><div class="rvv" id="rv_v">—</div><div class="rvu">V</div></div>
+      <div class="rvc peak">
         <div class="rvl">Peak RPM (ERPM ÷ 7 pole pairs)</div>
-        <div class="rvv" id="rv_rpm" style="color:var(--accent);font-size:26px;">—</div>
+        <div class="rvv" id="rv_rpm">—</div>
         <div class="rvu">RPM</div>
       </div>
-      <div class="rvc rvc-calc"><div class="rvl">RPM per Volt</div><div class="rvv" id="rv_rpm_per_v">—</div><div class="rvu">RPM / V</div></div>
-      <div class="rvc rpm48-big">
+      <div class="rvc accent-hl"><div class="rvl">RPM per Volt</div><div class="rvv" id="rv_rpm_per_v">—</div><div class="rvu">RPM / V</div></div>
+      <div class="rvc accent-hl" style="grid-column:1/-1;">
         <div class="rvl">Projected RPM @ 48V</div>
-        <div class="rvv" id="rv_rpm_48v">—</div>
+        <div class="rvv" id="rv_rpm_48v" style="font-size:26px;">—</div>
         <div class="rvu">RPM at 48V (RPM/V × 48)</div>
       </div>
     </div>
-    <div style="margin-top:8px;padding:7px;background:rgba(251,191,36,.04);border:1px solid rgba(251,191,36,.12);border-radius:5px;font-size:10px;color:var(--muted);line-height:1.5;">⚠ Sends duty to <strong style="color:#fff;">master TMCS directly</strong> — no CAN. Motor must spin freely.</div>
+
+    <div class="notice">
+      ⚠ Sends duty to <strong>master TMCS directly</strong> — no CAN. Motor must spin freely.
+    </div>
   </div>
 
-  <!-- ── QUICK MOTOR LOOKUP ── -->
-  <div class="panel pu">
-    <div class="pt">Quick Motor Lookup</div>
+  <!-- Quick Motor Lookup -->
+  <div class="card card-accent-top c-purple">
+    <div class="card-title">Quick Motor Lookup</div>
     <div class="lookup-wrap">
-      <div style="display:flex;gap:6px;margin-bottom:0;">
-        <input id="lookupInput" placeholder="Type motor no… (partial ok)"
-               style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:5px 0 0 5px;padding:6px 9px;color:#fff;font-family:var(--mono);font-size:12px;outline:none;"
-               oninput="onLookupInput()"
-               onkeydown="onLookupKey(event)"
-               autocomplete="off">
-        <button class="btn btn-db" onclick="commitLookup()" style="width:auto;padding:5px 10px;border-radius:0 5px 5px 0;">🔍</button>
+      <div class="lookup-row">
+        <input class="lookup-input" id="lookupInput" placeholder="Type motor no… (partial ok)"
+               oninput="onLookupInput()" onkeydown="onLookupKey(event)" autocomplete="off">
+        <button class="btn btn-outline-purple lookup-btn" onclick="commitLookup()">🔍</button>
       </div>
-      <!-- DROPDOWN -->
       <div class="lookup-dropdown" id="lookupDropdown"></div>
     </div>
-    <div id="lookupResult" style="font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:8px 0;margin-top:6px;">Type to search motors</div>
+    <div id="lookupResult" style="font-family:var(--mono);font-size:10px;color:var(--text3);text-align:center;padding:10px 0;margin-top:4px;">Type to search motors</div>
   </div>
-</div><!-- /right -->
+
+</div><!-- /right col -->
 </div><!-- /cols -->
 
 <!-- DB TABLE -->
-<div class="panel pu db-full">
-  <div class="pt">Database — All Motor Records</div>
-  <div class="db-frow">
-    <input id="dbFilter" placeholder="Filter by motor no…" oninput="renderTable()" style="width:180px;">
-    <span style="font-size:10px;color:var(--muted);margin-left:auto;" id="dbCount">0 records</span>
-    <button class="btn btn-db" onclick="refreshDB()" style="width:auto;padding:5px 10px;font-size:10px;">⟳ Refresh</button>
-    <button class="btn btn-ex" onclick="exportCSV()" style="width:auto;padding:5px 10px;font-size:10px;">⬇ Export CSV</button>
+<div class="card db-card" style="margin-top:16px;">
+  <div class="card-title">Database — All Motor Records</div>
+  <div class="db-toolbar">
+    <input class="db-filter" id="dbFilter" placeholder="Filter by motor no…" oninput="renderTable()">
+    <span class="db-count" id="dbCount">0 records</span>
+    <button class="btn btn-ghost" onclick="refreshDB()" style="width:auto;padding:6px 12px;font-size:10px;">⟳ Refresh</button>
+    <button class="btn btn-outline-green" onclick="exportCSV()" style="width:auto;padding:6px 12px;font-size:10px;">⬇ Export CSV</button>
   </div>
-  <div class="dbw"><div id="dbContainer"><div class="db-empty">Click Refresh or save a record</div></div></div>
+  <div class="db-table-wrap">
+    <div id="dbContainer"><div class="db-empty">Click Refresh or save a record</div></div>
+  </div>
 </div>
+
 </div><!-- /wrap -->
 
 <script>
+// ── THEME ──────────────────────────────────────────────────────────────────────
+function toggleTheme(){
+  const html=document.documentElement;
+  const next=html.getAttribute('data-theme')==='dark'?'light':'dark';
+  html.setAttribute('data-theme',next);
+  document.getElementById('themeIcon').textContent=next==='dark'?'☀':'☾';
+  localStorage.setItem('vesc_theme',next);
+}
+(function(){
+  const saved=localStorage.getItem('vesc_theme');
+  if(saved){document.documentElement.setAttribute('data-theme',saved);document.getElementById('themeIcon').textContent=saved==='dark'?'☀':'☾';}
+})();
+
 const CMD_RL=25,CMD_FLUX=57,CMD_CAN_FWD=34,CMD_SET_DUTY=5,VESC_GET_VALUES=4;
-const API="https://torusroboticsgithubio-production.up.railway.app/api"
-const LS_KEY="TMCS_airgap_state_v3";
+const API="http://localhost:5000/api";
+const LS_KEY="vesc_airgap_state_v4";
+
+const VESC_FILTERS=[
+  {usbVendorId:0x0483,usbProductId:0x5740},
+  {usbVendorId:0x0483,usbProductId:0x5720},
+  {usbVendorId:0x0483},
+];
 
 let port,reader,writer,buf=[],pollTimer=null,pktCount=0,peakTach=null;
 let connected=false,runActive=false,runStartTach=null,runTargetTach=null;
@@ -491,10 +1260,7 @@ let dupPendingMotorNo=null,dupPendingNotes=null,dupPendingAction=null,dupPending
 let PS={};
 let sessionTachMoves=[];
 let sessionTachCumulative=0;
-
-// ── Lookup state ──────────────────────────────────────────────────────────────
-let lookupDebounce=null;
-let lookupDDActive=-1; // highlighted index in dropdown
+let lookupDebounce=null,lookupDDActive=-1;
 
 function loadPS(){try{PS=JSON.parse(localStorage.getItem(LS_KEY)||'{}');}catch(e){PS={};} PS.motorNo=PS.motorNo||''; PS.motorNotes=PS.motorNotes||'';}
 function savePS(){localStorage.setItem(LS_KEY,JSON.stringify(PS));}
@@ -503,259 +1269,117 @@ function applyPS(){
   if(PS.motorNotes) document.getElementById('motorNotes').value=PS.motorNotes;
   if(PS.rVal)  document.getElementById('rVal').textContent=PS.rVal;
   if(PS.lVal)  document.getElementById('lVal').textContent=PS.lVal;
-  if(PS.fluxVal){document.getElementById('fluxVal').textContent=PS.fluxVal;triggerFluxSuggest(parseFloat(PS.fluxVal));}
+  if(PS.fluxVal){document.getElementById('fluxVal').textContent=PS.fluxVal;}
   if(PS.res)   document.getElementById('res').value=PS.res;
   if(PS.ind)   document.getElementById('ind').value=PS.ind;
   if(PS.rampCaptured){rampCaptured=PS.rampCaptured;displayRampCapture(rampCaptured);}
+  if(PS.fluxInitial!=null) setFluxInitialDisplay(PS.fluxInitial,PS.fluxInitialTs);
+  if(PS.fluxFinal!=null)   setFluxFinalDisplay(PS.fluxFinal,PS.fluxFinalTs);
+  updateFluxDelta();
   updateMotorDisplay(); updateTachAccumDisplay(); updateRunLabel();
 }
 
 async function apiGet(path){const r=await fetch(API+path);if(!r.ok)throw new Error(await r.text());return r.json();}
 async function apiPost(path,body){const r=await fetch(API+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());return r.json();}
 async function apiDel(path){const r=await fetch(API+path,{method:'DELETE'});if(!r.ok)throw new Error(await r.text());return r.json();}
-async function checkAPI(){try{await fetch(API+'/records?limit=1');document.getElementById('apiDot').className='api-dot ok';document.getElementById('apiStatus').textContent='DB connected';return true;}catch(e){document.getElementById('apiDot').className='api-dot err';document.getElementById('apiStatus').textContent='DB offline';return false;}}
+async function checkAPI(){try{await fetch(API+'/records?limit=1');document.getElementById('apiDot').className='status-dot ok';document.getElementById('apiStatus').textContent='DB connected';return true;}catch(e){document.getElementById('apiDot').className='status-dot err';document.getElementById('apiStatus').textContent='DB offline';return false;}}
 
-// ── Duplicate modal ───────────────────────────────────────────────────────────
-function openDupModal(motorNo,notes,pendingPayload,action){
-  dupPendingMotorNo=motorNo;dupPendingNotes=notes;dupPendingPayload=pendingPayload;dupPendingAction=action;
-  document.getElementById('dupMotorName').textContent=motorNo;
-  document.getElementById('dupModal').classList.add('on');
-}
+function getCurrentFluxMwb(){const v=parseFloat(document.getElementById('fluxVal').textContent);return isNaN(v)?null:v;}
+function nowTs(){return new Date().toISOString().replace('T',' ').substring(0,19);}
+function setFluxInitialDisplay(val,ts){document.getElementById('fluxInitDisp').textContent=val!=null?val.toFixed(3)+' mWb':'— mWb';document.getElementById('fluxInitTs').textContent=ts||'';}
+function setFluxFinalDisplay(val,ts){document.getElementById('fluxFinalDisp').textContent=val!=null?val.toFixed(3)+' mWb':'— mWb';document.getElementById('fluxFinalTs').textContent=ts||'';}
+function updateFluxDelta(){const i=PS.fluxInitial,f=PS.fluxFinal;if(i!=null&&f!=null){const d=(f-i).toFixed(3);document.getElementById('fluxDeltaDisp').textContent=`${d>0?'+':''}${d} mWb`;}else{document.getElementById('fluxDeltaDisp').textContent='—';}}
+function captureFluxInitial(){const v=getCurrentFluxMwb();if(v==null){log('Measure flux first (Measure Flux Linkage button)','er');return;}const ts=nowTs();PS.fluxInitial=v;PS.fluxInitialTs=ts;savePS();setFluxInitialDisplay(v,ts);updateFluxDelta();log(`Flux INITIAL captured: ${v.toFixed(3)} mWb @ ${ts}`,'flx');}
+function captureFluxFinal(){const v=getCurrentFluxMwb();if(v==null){log('Measure flux first (Measure Flux Linkage button)','er');return;}const ts=nowTs();PS.fluxFinal=v;PS.fluxFinalTs=ts;savePS();setFluxFinalDisplay(v,ts);updateFluxDelta();log(`Flux FINAL captured: ${v.toFixed(3)} mWb @ ${ts}`,'flx');triggerFluxSuggest(v);}
+
+function openDupModal(motorNo,notes,pendingPayload,action){dupPendingMotorNo=motorNo;dupPendingNotes=notes;dupPendingPayload=pendingPayload;dupPendingAction=action;document.getElementById('dupMotorName').textContent=motorNo;document.getElementById('dupModal').classList.add('on');}
 function closeDupModal(){document.getElementById('dupModal').classList.remove('on');dupPendingMotorNo=null;dupPendingNotes=null;dupPendingPayload=null;dupPendingAction=null;}
-async function confirmDupAdd(){
-  const m=dupPendingMotorNo,n=dupPendingNotes,p=dupPendingPayload,a=dupPendingAction;
-  closeDupModal();
-  if(a==='register')await doRegisterMotor(m,n);
-  else if(a==='airgap')await doSaveAirgap(p);
-  else if(a==='ramp')await doSaveRamp(p);
-  else if(a==='all')await doSaveAll(p);
-}
-async function confirmDupReplace(){
-  const m=dupPendingMotorNo,n=dupPendingNotes,p=dupPendingPayload,a=dupPendingAction;
-  closeDupModal();
-  if(p){
-    try{
-      const res=await fetch(API+'/record/replace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});
-      const data=await res.json();
-      if(data.ok){
-        log(`DB: Replaced record #${data.replaced||'?'} → new #${data.id}`,'db');
-        showFb('airgapFb',`Replaced ✓  motor=${m}`,'ok');
-        refreshDB();
-        if(a==='airgap'||a==='all'){resetAfterSave();}
-      }else{log('Replace failed: '+JSON.stringify(data),'er');}
-    }catch(e){log('Replace error: '+e.message,'er');}
-  }else{
-    if(a==='register')await doRegisterMotor(m,n);
-  }
-}
+async function confirmDupAdd(){const m=dupPendingMotorNo,n=dupPendingNotes,p=dupPendingPayload,a=dupPendingAction;closeDupModal();if(a==='register')await doRegisterMotor(m,n);else if(a==='all')await doSaveAll(p);}
+async function confirmDupReplace(){const m=dupPendingMotorNo,n=dupPendingNotes,p=dupPendingPayload,a=dupPendingAction;closeDupModal();if(p){try{const res=await fetch(API+'/record/replace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});const data=await res.json();if(data.ok){log(`DB: Replaced record #${data.replaced||'?'} → new #${data.id}`,'db');showFb('airgapFb',`Replaced ✓  motor=${m}`,'ok');refreshDB();if(a==='all'){resetAfterSave();}}else{log('Replace failed: '+JSON.stringify(data),'er');}}catch(e){log('Replace error: '+e.message,'er');}}else{if(a==='register')await doRegisterMotor(m,n);}}
 async function checkMotorExists(motorNo){try{const rows=await apiGet(`/records?motor_no=${encodeURIComponent(motorNo)}`);return rows&&rows.length>0;}catch(e){return false;}}
 
-// ── Motor / session ───────────────────────────────────────────────────────────
-function onMotorNoChange(){
-  const n=document.getElementById('motorNo').value.trim();
-  if(n!==PS.motorNo){sessionTachMoves=[];sessionTachCumulative=0;updateTachAccumDisplay();log(`Motor changed to "${n}" — session reset`,'inf');}
-  PS.motorNo=n; PS.motorNotes=document.getElementById('motorNotes').value.trim(); savePS(); updateMotorDisplay();
-}
-function updateMotorDisplay(){
-  const v=PS.motorNo||'— not set —';
-  document.getElementById('activeMotorDisp').textContent=v;
-  const hasMoves=sessionTachMoves.length>0;
-  const hasRamp=rampCaptured!==null;
-  document.getElementById('btnSaveAll').disabled=!(PS.motorNo&&(hasMoves||hasRamp));
-}
-async function registerMotor(){
-  const m=PS.motorNo,n=PS.motorNotes;
-  if(!m){showFb('motorFb','Motor number required','er');return;}
-  if(await checkMotorExists(m)){openDupModal(m,n,null,'register');return;}
-  await doRegisterMotor(m,n);
-}
-async function doRegisterMotor(m,n){
-  try{await apiPost('/record',{motor_no:m,motor_notes:n,record_type:'registration'});showFb('motorFb',`Motor ${m} registered ✓`,'ok');log(`DB: Motor ${m} registered`,'db');refreshDB();}
-  catch(e){showFb('motorFb',e.message,'er');}
-}
+function onMotorNoChange(){const n=document.getElementById('motorNo').value.trim();if(n!==PS.motorNo){sessionTachMoves=[];sessionTachCumulative=0;updateTachAccumDisplay();log(`Motor changed to "${n}" — session reset`,'inf');}PS.motorNo=n;PS.motorNotes=document.getElementById('motorNotes').value.trim();savePS();updateMotorDisplay();}
+function updateMotorDisplay(){const v=PS.motorNo||'— not set —';document.getElementById('activeMotorDisp').textContent=v;const hasMoves=sessionTachMoves.length>0;const hasRamp=rampCaptured!==null;document.getElementById('btnSaveAll').disabled=!(PS.motorNo&&(hasMoves||hasRamp));}
+async function registerMotor(){const m=PS.motorNo,n=PS.motorNotes;if(!m){showFb('motorFb','Motor number required','er');return;}if(await checkMotorExists(m)){openDupModal(m,n,null,'register');return;}await doRegisterMotor(m,n);}
+async function doRegisterMotor(m,n){try{await apiPost('/record',{motor_no:m,motor_notes:n,record_type:'registration'});showFb('motorFb',`Motor ${m} registered ✓`,'ok');log(`DB: Motor ${m} registered`,'db');refreshDB();}catch(e){showFb('motorFb',e.message,'er');}}
 
 function recordMove(delta,dir){sessionTachMoves.push({delta,dir});sessionTachCumulative+=delta;updateTachAccumDisplay();}
 function updateTachAccumDisplay(){
-  document.getElementById('tachCumDisp').innerHTML=`${sessionTachCumulative.toLocaleString()} <span style="font-size:11px;color:var(--muted);">counts</span>`;
+  document.getElementById('tachCumDisp').innerHTML=`${sessionTachCumulative.toLocaleString()} <span style="font-size:11px;color:var(--text3);">counts</span>`;
   document.getElementById('totalTachDisp').textContent=sessionTachCumulative.toLocaleString();
   const chips=document.getElementById('tachChips');
-  if(!sessionTachMoves.length){chips.innerHTML='<span style="font-size:10px;color:var(--muted);">No moves yet</span>';return;}
+  if(!sessionTachMoves.length){chips.innerHTML='<span style="font-size:10px;color:var(--text3);">No moves yet</span>';return;}
   chips.innerHTML=sessionTachMoves.slice(-8).map(m=>`<span class="chip ${m.dir==='REV'?'neg':''}">${m.dir==='FWD'?'+':'-'}${Math.abs(m.delta)}</span>`).join('')+(sessionTachMoves.length>8?`<span class="chip">+${sessionTachMoves.length-8}</span>`:'');
   updateMotorDisplay();
 }
 
-// ── SINGLE SAVE BUTTON ────────────────────────────────────────────────────────
 async function saveAll(){
   if(!PS.motorNo){showFb('airgapFb','Set Motor No first','er');return;}
-  const hasMoves=sessionTachMoves.length>0;
-  const hasRamp=rampCaptured!==null;
+  const hasMoves=sessionTachMoves.length>0;const hasRamp=rampCaptured!==null;
   if(!hasMoves&&!hasRamp){showFb('airgapFb','Nothing to save yet','er');return;}
-
   const last=hasMoves?sessionTachMoves[sessionTachMoves.length-1]:null;
-  const payload={
-    motor_no:PS.motorNo,
-    motor_notes:PS.motorNotes,
-    tach_cumulative:hasMoves?sessionTachCumulative:null,
-    tach_delta:hasMoves?last.delta:null,
-    direction:hasMoves?last.dir:null,
-    tach_moves:hasMoves?JSON.stringify(sessionTachMoves):null,
-    resistance_mohm:PS.res?parseFloat(PS.res):null,
-    inductance_uh:PS.ind?parseFloat(PS.ind):null,
-    flux_linkage_mwb:PS.fluxVal?parseFloat(PS.fluxVal):null,
-    ...(hasRamp?{
-      motor_current_a:rampCaptured.motor_current_a,
-      battery_current_a:rampCaptured.battery_current_a,
-      duty_pct:rampCaptured.duty_pct,
-      voltage_v:rampCaptured.voltage_v,
-      rpm_at_95:rampCaptured.rpm_at_95,
-      tach_at_ramp:rampCaptured.tach_at_ramp,
-      rpm_per_volt:rampCaptured.rpm_per_volt,
-      rpm_at_48v:rampCaptured.rpm_at_48v,
-    }:{}),
-    record_type:hasRamp&&hasMoves?'full':hasRamp?'ramp':'airgap'
-  };
-
+  const payload={motor_no:PS.motorNo,motor_notes:PS.motorNotes,tach_cumulative:hasMoves?sessionTachCumulative:null,tach_delta:hasMoves?last.delta:null,direction:hasMoves?last.dir:null,tach_moves:hasMoves?JSON.stringify(sessionTachMoves):null,resistance_mohm:PS.res?parseFloat(PS.res):null,inductance_uh:PS.ind?parseFloat(PS.ind):null,flux_linkage_mwb:PS.fluxFinal??PS.fluxInitial??(PS.fluxVal?parseFloat(PS.fluxVal):null),flux_linkage_initial_mwb:PS.fluxInitial??null,flux_initial_ts:PS.fluxInitialTs??null,flux_linkage_final_mwb:PS.fluxFinal??null,flux_final_ts:PS.fluxFinalTs??null,flux_delta_mwb:(PS.fluxInitial!=null&&PS.fluxFinal!=null)?(PS.fluxFinal-PS.fluxInitial):null,...(hasRamp?{motor_current_a:rampCaptured.motor_current_a,battery_current_a:rampCaptured.battery_current_a,duty_pct:rampCaptured.duty_pct,voltage_v:rampCaptured.voltage_v,rpm_at_95:rampCaptured.rpm_at_95,tach_at_ramp:rampCaptured.tach_at_ramp,rpm_per_volt:rampCaptured.rpm_per_volt,rpm_at_48v:rampCaptured.rpm_at_48v}:{}),record_type:hasRamp&&hasMoves?'full':hasRamp?'ramp':'airgap'};
   if(await checkMotorExists(PS.motorNo)){openDupModal(PS.motorNo,PS.motorNotes,payload,'all');return;}
   await doSaveAll(payload);
 }
-async function doSaveAll(payload){
-  try{
-    await apiPost('/record',payload);
-    const typeLabel=payload.record_type;
-    showFb('airgapFb',`Saved ✓  [${typeLabel}]  motor=${payload.motor_no}`,'ok');
-    log(`DB: Saved [${typeLabel}] — ${payload.motor_no}`,'db');
-    resetAfterSave();
-    refreshDB();
-  }catch(e){showFb('airgapFb','DB failed: '+e.message,'er');}
-}
-async function saveAirgap(){await saveAll();}
-async function doSaveAirgap(payload){await doSaveAll(payload);}
+async function doSaveAll(payload){try{await apiPost('/record',payload);const typeLabel=payload.record_type;showFb('airgapFb',`Saved ✓  [${typeLabel}]  motor=${payload.motor_no}`,'ok');log(`DB: Saved [${typeLabel}] — ${payload.motor_no}  fluxΔ=${payload.flux_delta_mwb!=null?payload.flux_delta_mwb.toFixed(3):'—'}mWb`,'db');resetAfterSave();refreshDB();}catch(e){showFb('airgapFb','DB failed: '+e.message,'er');}}
+function resetAfterSave(){document.getElementById('motorNo').value='';document.getElementById('motorNotes').value='';PS.motorNo='';PS.motorNotes='';PS.fluxInitial=null;PS.fluxInitialTs=null;PS.fluxFinal=null;PS.fluxFinalTs=null;sessionTachMoves=[];sessionTachCumulative=0;rampCaptured=null;PS.rampCaptured=null;savePS();updateMotorDisplay();updateTachAccumDisplay();setFluxInitialDisplay(null,'');setFluxFinalDisplay(null,'');document.getElementById('fluxDeltaDisp').textContent='—';['rv_mc','rv_bc','rv_duty','rv_v','rv_rpm','rv_rpm_per_v','rv_rpm_48v'].forEach(id=>document.getElementById(id).textContent='—');document.getElementById('btnRampStart').disabled=!connected;log('Fields reset — ready for next motor','inf');}
 
-function resetAfterSave(){
-  document.getElementById('motorNo').value='';
-  document.getElementById('motorNotes').value='';
-  PS.motorNo='';PS.motorNotes='';
-  sessionTachMoves=[];sessionTachCumulative=0;
-  rampCaptured=null;PS.rampCaptured=null;
-  savePS();updateMotorDisplay();updateTachAccumDisplay();
-  ['rv_mc','rv_bc','rv_duty','rv_v','rv_rpm','rv_rpm_per_v','rv_rpm_48v'].forEach(id=>document.getElementById(id).textContent='—');
-  document.getElementById('btnRampStart').disabled=!connected;
-  log('Fields reset — ready for next motor','inf');
-}
-
-// ── Flux suggest ──────────────────────────────────────────────────────────────
-async function triggerFluxSuggest(flux){
-  if(!flux||flux<=0)return;
-  try{
-    const data=await apiGet(`/flux-suggest?flux=${flux}&tol=0.1`);
-    if(!data.suggestions||!data.suggestions.length){document.getElementById('suggestBox').classList.remove('on');return;}
-    document.getElementById('suggestBox').classList.add('on');
-    document.getElementById('suggestRows').innerHTML=data.suggestions.slice(0,5).map(s=>`<div class="suggest-row" onclick="applySuggest(${s.tach_cumulative})"><span style="color:var(--gold);">${s.motor_no}</span><span style="color:var(--muted);">flux=${s.flux_linkage_mwb?.toFixed(3)}</span><span style="color:var(--accent);">tach=${s.tach_cumulative?.toLocaleString()}</span><span class="suggest-apply">Apply →</span></div>`).join('');
-  }catch(e){}
-}
+async function triggerFluxSuggest(flux){if(!flux||flux<=0)return;try{const data=await apiGet(`/flux-suggest?flux=${flux}&tol=0.1`);if(!data.suggestions||!data.suggestions.length){document.getElementById('suggestBox').classList.remove('on');return;}document.getElementById('suggestBox').classList.add('on');document.getElementById('suggestRows').innerHTML=data.suggestions.slice(0,5).map(s=>`<div class="suggest-row" onclick="applySuggest(${s.tach_cumulative})"><span style="color:var(--amber);">${s.motor_no}</span><span style="color:var(--text3);">flux=${s.flux_linkage_mwb?.toFixed(3)}</span><span style="color:var(--accent);">tach=${s.tach_cumulative?.toLocaleString()}</span><span class="suggest-apply">Apply →</span></div>`).join('');}catch(e){}}
 function applySuggest(tach){document.getElementById('tachTarget').value=tach;updateRunLabel();log(`Flux suggest: tach set to ${tach}`,'inf');}
 
-// ── RAMP TEST ─────────────────────────────────────────────────────────────────
-function buildDutyMaster(duty){
-  if(duty===null||duty===undefined)return null;
-  duty=Math.max(-1,Math.min(1,duty));
-  const raw=Math.round(duty*100000),u=(raw>>>0);
-  return packet([CMD_SET_DUTY,(u>>24)&0xFF,(u>>16)&0xFF,(u>>8)&0xFF,u&0xFF]);
-}
-
+function buildDutyMaster(duty){if(duty===null||duty===undefined)return null;duty=Math.max(-1,Math.min(1,duty));const raw=Math.round(duty*100000),u=(raw>>>0);return packet([CMD_SET_DUTY,(u>>24)&0xFF,(u>>16)&0xFF,(u>>8)&0xFF,u&0xFF]);}
 async function startRamp(){
   if(!writer||!PS.motorNo){showFb('airgapFb','Set Motor No + connect first','er');return;}
   const duration=parseInt(document.getElementById('rampDuration').value)||3000;
-  const stepMs  =parseInt(document.getElementById('rampStep').value)||50;
-  const holdMs  =parseInt(document.getElementById('rampHold').value)||3000;
-  const maxDuty=0.95, steps=Math.ceil(duration/stepMs);
-  rampActive=true; rampCaptured=null;
-  rampPeak={rpm:0,mc:0,bc:0,duty:0,vin:0};
-
+  const stepMs=parseInt(document.getElementById('rampStep').value)||50;
+  const holdMs=parseInt(document.getElementById('rampHold').value)||3000;
+  const maxDuty=0.95,steps=Math.ceil(duration/stepMs);
+  rampActive=true;rampCaptured=null;rampPeak={rpm:0,mc:0,bc:0,duty:0,vin:0};
   document.getElementById('btnRampStart').disabled=true;
   document.getElementById('btnRampStop').disabled=false;
   document.getElementById('btnSaveAll').disabled=true;
-  document.getElementById('rampDot').style.background='var(--gold)';
-  document.getElementById('rampDot').style.boxShadow='0 0 8px var(--gold)';
+  const rd=document.getElementById('rampDot');
+  rd.style.background='var(--amber)';rd.style.boxShadow='0 0 0 3px var(--amber-dim)';
   document.getElementById('rampHoldBar').classList.remove('on');
-
   ['rv_mc','rv_bc','rv_duty','rv_v','rv_rpm','rv_rpm_per_v','rv_rpm_48v'].forEach(id=>document.getElementById(id).textContent='—');
   ['rl_rpm','rl_mc','rl_bc','rl_v'].forEach(id=>document.getElementById(id).textContent='—');
   document.getElementById('rampLiveStrip').classList.add('on');
-
   log(`RAMP START — ${steps} steps × ${stepMs}ms → 95%`,'rmp');
   setRampState('RAMPING…');
   let step=0;
-
   async function doStep(){
     if(!rampActive){finishRamp(false);return;}
     step++;
     const duty=Math.min((step/steps)*maxDuty,maxDuty);
     document.getElementById('rampFill').style.width=`${Math.min(duty/maxDuty*100,100)}%`;
     document.getElementById('rampDutyLbl').textContent=`${(duty*100).toFixed(1)}%`;
-
     const pkt=buildDutyMaster(duty);
-    if(pkt) try{ await writer.write(pkt); }catch(e){}
-
-    if(step%5===0 || step===1){
-      rampWaitingCapture=true;
-      try{ await writer.write(packet([VESC_GET_VALUES])); }catch(e){}
-    }
-
+    if(pkt)try{await writer.write(pkt);}catch(e){}
+    if(step%5===0||step===1){rampWaitingCapture=true;try{await writer.write(packet([VESC_GET_VALUES]));}catch(e){}}
     if(duty>=maxDuty-0.001){
       document.getElementById('rampFill').style.width='100%';
-      setRampState(`HOLDING @ 95%…`);
+      setRampState('HOLDING @ 95%…');
       log(`Reached 95% — holding ${holdMs}ms, tracking peak…`,'rmp');
-
-      const holdBar=document.getElementById('rampHoldBar');
-      holdBar.classList.add('on');
+      const holdBar=document.getElementById('rampHoldBar');holdBar.classList.add('on');
       const holdFill=document.getElementById('rampHoldFill');
       const holdCountdown=document.getElementById('rampHoldCountdown');
       const holdStart=Date.now();
-
-      let captureInterval=setInterval(async()=>{
-        if(!rampActive){clearInterval(captureInterval);return;}
-        rampWaitingCapture=true;
-        try{ await writer.write(packet([VESC_GET_VALUES])); }catch(e){}
-      },400);
-
-      let holdInterval=setInterval(()=>{
-        if(!rampActive){clearInterval(holdInterval);return;}
-        const elapsed=Date.now()-holdStart;
-        const ratio=Math.max(0,1-elapsed/holdMs);
-        holdFill.style.width=`${ratio*100}%`;
-        holdCountdown.textContent=`${(ratio*holdMs/1000).toFixed(1)}s`;
-      },100);
-
+      let captureInterval=setInterval(async()=>{if(!rampActive){clearInterval(captureInterval);return;}rampWaitingCapture=true;try{await writer.write(packet([VESC_GET_VALUES]));}catch(e){}},400);
+      let holdInterval=setInterval(()=>{if(!rampActive){clearInterval(holdInterval);return;}const elapsed=Date.now()-holdStart;const ratio=Math.max(0,1-elapsed/holdMs);holdFill.style.width=`${ratio*100}%`;holdCountdown.textContent=`${(ratio*holdMs/1000).toFixed(1)}s`;},100);
       clearTimeout(rampTimer);
       rampTimer=setTimeout(async()=>{
         if(!rampActive)return;
-        clearInterval(captureInterval);
-        clearInterval(holdInterval);
-        rampWaitingCapture=false;
-        holdBar.classList.remove('on');
-
-        log(`Hold complete — stopped sending duty. Peak RPM: ${rampPeak.rpm?.toLocaleString()||'—'}`,'rmp');
-
+        clearInterval(captureInterval);clearInterval(holdInterval);
+        rampWaitingCapture=false;holdBar.classList.remove('on');
+        log(`Hold complete — Peak RPM: ${rampPeak.rpm?.toLocaleString()||'—'}`,'rmp');
         const v=(rampPeak.rpm>0)?rampPeak:(lastMasterVals||{});
-        const rpm=v.rpm??null;
-        const vin=v.vin??null;
+        const rpm=v.rpm??null,vin=v.vin??null;
         const rpmPerVolt=(rpm!=null&&vin!=null&&vin>0)?(rpm/vin):null;
         const rpmAt48v=rpmPerVolt!=null?rpmPerVolt*48:null;
-
-        rampCaptured={
-          motor_current_a:   v.mc   ??null,
-          battery_current_a: v.bc   ??null,
-          duty_pct:          v.duty ??maxDuty*100,
-          voltage_v:         vin,
-          rpm_at_95:         rpm,
-          tach_at_ramp:      lastTach,
-          rpm_per_volt:      rpmPerVolt,
-          rpm_at_48v:        rpmAt48v
-        };
-        PS.rampCaptured=rampCaptured; savePS();
-        displayRampCapture(rampCaptured);
-        finishRamp(true);
+        rampCaptured={motor_current_a:v.mc??null,battery_current_a:v.bc??null,duty_pct:v.duty??maxDuty*100,voltage_v:vin,rpm_at_95:rpm,tach_at_ramp:lastTach,rpm_per_volt:rpmPerVolt,rpm_at_48v:rpmAt48v};
+        PS.rampCaptured=rampCaptured;savePS();
+        displayRampCapture(rampCaptured);finishRamp(true);
       },holdMs);
       return;
     }
@@ -763,47 +1387,31 @@ async function startRamp(){
   }
   rampTimer=setTimeout(doStep,stepMs);
 }
-
 function displayRampCapture(v){
-  document.getElementById('rv_mc').textContent   = v.motor_current_a!=null   ? v.motor_current_a.toFixed(2)   : '—';
-  document.getElementById('rv_bc').textContent   = v.battery_current_a!=null ? v.battery_current_a.toFixed(2) : '—';
-  document.getElementById('rv_duty').textContent = v.duty_pct!=null           ? v.duty_pct.toFixed(1)          : '—';
-  document.getElementById('rv_v').textContent    = v.voltage_v!=null          ? v.voltage_v.toFixed(1)         : '—';
-  document.getElementById('rv_rpm').textContent  = v.rpm_at_95!=null          ? v.rpm_at_95.toLocaleString()   : '—';
-  document.getElementById('rv_rpm_per_v').textContent = v.rpm_per_volt!=null  ? v.rpm_per_volt.toFixed(1)      : '—';
-  document.getElementById('rv_rpm_48v').textContent   = v.rpm_at_48v!=null    ? Math.round(v.rpm_at_48v).toLocaleString() : '—';
+  document.getElementById('rv_mc').textContent=v.motor_current_a!=null?v.motor_current_a.toFixed(2):'—';
+  document.getElementById('rv_bc').textContent=v.battery_current_a!=null?v.battery_current_a.toFixed(2):'—';
+  document.getElementById('rv_duty').textContent=v.duty_pct!=null?v.duty_pct.toFixed(1):'—';
+  document.getElementById('rv_v').textContent=v.voltage_v!=null?v.voltage_v.toFixed(1):'—';
+  document.getElementById('rv_rpm').textContent=v.rpm_at_95!=null?v.rpm_at_95.toLocaleString():'—';
+  document.getElementById('rv_rpm_per_v').textContent=v.rpm_per_volt!=null?v.rpm_per_volt.toFixed(1):'—';
+  document.getElementById('rv_rpm_48v').textContent=v.rpm_at_48v!=null?Math.round(v.rpm_at_48v).toLocaleString():'—';
   log(`PEAK: RPM=${v.rpm_at_95?.toLocaleString()||'—'}  Imot=${v.motor_current_a?.toFixed(2)}A  Ibat=${v.battery_current_a?.toFixed(2)}A  V=${v.voltage_v?.toFixed(1)}V  RPM/V=${v.rpm_per_volt?.toFixed(1)||'—'}  @48V=${v.rpm_at_48v?Math.round(v.rpm_at_48v).toLocaleString():'—'}`,'rmp');
   updateMotorDisplay();
 }
-
 function finishRamp(ok){
-  rampActive=false;
-  if(rampTimer){clearTimeout(rampTimer);rampTimer=null;}
+  rampActive=false;if(rampTimer){clearTimeout(rampTimer);rampTimer=null;}
   document.getElementById('btnRampStart').disabled=!connected;
   document.getElementById('btnRampStop').disabled=true;
-  document.getElementById('rampDot').style.background='var(--muted)';
-  document.getElementById('rampDot').style.boxShadow='none';
+  const rd=document.getElementById('rampDot');rd.style.background='var(--text3)';rd.style.boxShadow='none';
   document.getElementById('rampHoldBar').classList.remove('on');
   document.getElementById('rampLiveStrip').classList.remove('on');
   if(ok){setRampState('DONE ✓');updateMotorDisplay();log('Ramp complete','rmp');}
   else setRampState('ABORTED');
 }
-async function stopRamp(){
-  rampActive=false;
-  if(rampTimer){clearTimeout(rampTimer);rampTimer=null;}
-  if(writer){try{const p=buildDutyMaster(0);if(p)await writer.write(p);}catch(e){}}
-  finishRamp(false);log('Ramp aborted','er');
-}
+async function stopRamp(){rampActive=false;if(rampTimer){clearTimeout(rampTimer);rampTimer=null;}if(writer){try{const p=buildDutyMaster(0);if(p)await writer.write(p);}catch(e){}}finishRamp(false);log('Ramp aborted','er');}
 function setRampState(s){document.getElementById('rampStateLbl').textContent=s;}
 
-async function saveRamp(){await saveAll();}
-async function doSaveRamp(payload){await doSaveAll(payload);}
-
-// ── DB ────────────────────────────────────────────────────────────────────────
-async function refreshDB(){
-  try{dbRows=await apiGet('/records');renderTable();}
-  catch(e){document.getElementById('dbContainer').innerHTML='<div class="db-empty" style="color:var(--danger);">DB offline — is server.py running?</div>';}
-}
+async function refreshDB(){try{dbRows=await apiGet('/records');renderTable();}catch(e){document.getElementById('dbContainer').innerHTML='<div class="db-empty" style="color:var(--red);">DB offline — is server.py running?</div>';}}
 function renderTable(){
   const f=document.getElementById('dbFilter').value.trim().toLowerCase();
   const rows=f?dbRows.filter(r=>r.motor_no.toLowerCase().includes(f)):dbRows;
@@ -811,251 +1419,73 @@ function renderTable(){
   if(!rows.length){document.getElementById('dbContainer').innerHTML='<div class="db-empty">No records</div>';return;}
   let html=`<table><thead><tr>
     <th>ID</th><th>Motor No</th><th>Type</th><th>Tach Δ</th><th>Cumul</th><th>Dir</th>
-    <th>R mΩ</th><th>L µH</th><th>Flux mWb</th>
+    <th>R mΩ</th><th>L µH</th>
+    <th>Flux Init mWb</th><th>Flux Final mWb</th><th>Flux Δ mWb</th>
     <th>Imot A</th><th>Ibat A</th><th>Duty%</th><th>V</th><th>Peak RPM</th>
     <th>RPM/V</th><th>RPM@48V</th>
-    <th>Moves</th><th>Timestamp</th><th></th>
+    <th>Timestamp</th><th></th>
   </tr></thead><tbody>`;
   rows.forEach(r=>{
     const typ=r.record_type||'airgap';
-    const tc=typ==='ramp'?'var(--gold)':typ==='full'?'var(--accent)':typ==='registration'?'var(--muted)':'var(--accent3)';
-    let mv='—';if(r.tach_moves){try{const m=JSON.parse(r.tach_moves);mv=m.map(x=>(x.dir==='FWD'?'+':'-')+x.delta).join(', ');}catch(e){mv=r.tach_moves;}}
+    const fi=r.flux_linkage_initial_mwb!=null?r.flux_linkage_initial_mwb.toFixed(3):'—';
+    const ff=r.flux_linkage_final_mwb!=null?r.flux_linkage_final_mwb.toFixed(3):(r.flux_linkage_mwb!=null?r.flux_linkage_mwb.toFixed(3):'—');
+    const fd=r.flux_delta_mwb!=null?(r.flux_delta_mwb>0?'+':'')+r.flux_delta_mwb.toFixed(3):'—';
+    let typColor='c-green';
+    if(typ==='ramp')typColor='c-amber';
+    else if(typ==='full')typColor='c-blue';
+    else if(typ==='registration')typColor='';
     html+=`<tr>
-      <td class="ac">${r.id}</td>
-      <td class="gd">${r.motor_no}</td>
-      <td style="color:${tc};font-size:9px;text-transform:uppercase;">${typ}</td>
+      <td class="c-blue">${r.id}</td>
+      <td class="c-amber">${r.motor_no}</td>
+      <td class="${typColor}" style="font-size:9px;text-transform:uppercase;font-weight:600;">${typ}</td>
       <td>${r.tach_delta!=null?r.tach_delta.toLocaleString():'—'}</td>
-      <td class="ac">${r.tach_cumulative!=null?r.tach_cumulative.toLocaleString():'—'}</td>
+      <td class="c-blue">${r.tach_cumulative!=null?r.tach_cumulative.toLocaleString():'—'}</td>
       <td>${r.direction?`<span class="dbb ${r.direction.toLowerCase()}">${r.direction}</span>`:'—'}</td>
       <td>${r.resistance_mohm!=null?r.resistance_mohm.toFixed(2):'—'}</td>
       <td>${r.inductance_uh!=null?r.inductance_uh.toFixed(2):'—'}</td>
-      <td style="color:var(--purple);">${r.flux_linkage_mwb!=null?r.flux_linkage_mwb.toFixed(3):'—'}</td>
-      <td class="ok">${r.motor_current_a!=null?r.motor_current_a.toFixed(2):'—'}</td>
+      <td class="c-blue">${fi}</td>
+      <td class="c-amber">${ff}</td>
+      <td class="c-purple">${fd}</td>
+      <td class="c-green">${r.motor_current_a!=null?r.motor_current_a.toFixed(2):'—'}</td>
       <td>${r.battery_current_a!=null?r.battery_current_a.toFixed(2):'—'}</td>
-      <td class="ok">${r.duty_pct!=null?r.duty_pct.toFixed(1):'—'}</td>
+      <td class="c-green">${r.duty_pct!=null?r.duty_pct.toFixed(1):'—'}</td>
       <td>${r.voltage_v!=null?r.voltage_v.toFixed(1):'—'}</td>
-      <td style="color:var(--accent);">${r.rpm_at_95!=null?r.rpm_at_95.toLocaleString():'—'}</td>
-      <td style="color:var(--muted);">${r.rpm_per_volt!=null?r.rpm_per_volt.toFixed(1):'—'}</td>
-      <td style="color:var(--accent);">${r.rpm_at_48v!=null?Math.round(r.rpm_at_48v).toLocaleString():'—'}</td>
-      <td style="color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis;" title="${mv}">${mv.length>28?mv.substring(0,28)+'…':mv}</td>
-      <td style="color:var(--muted);">${r.timestamp.replace('T',' ').substring(0,19)}</td>
+      <td class="c-blue">${r.rpm_at_95!=null?r.rpm_at_95.toLocaleString():'—'}</td>
+      <td>${r.rpm_per_volt!=null?r.rpm_per_volt.toFixed(1):'—'}</td>
+      <td class="c-blue">${r.rpm_at_48v!=null?Math.round(r.rpm_at_48v).toLocaleString():'—'}</td>
+      <td style="color:var(--text3);">${r.timestamp.replace('T',' ').substring(0,19)}</td>
       <td><button class="del-btn" onclick="deleteRecord(${r.id})">✕</button></td>
     </tr>`;
   });
   html+='</tbody></table>';
   document.getElementById('dbContainer').innerHTML=html;
 }
-async function deleteRecord(id){
-  if(!confirm('Delete record '+id+'?'))return;
-  try{await apiDel('/record/'+id);dbRows=dbRows.filter(r=>r.id!==id);renderTable();log(`DB: deleted #${id}`,'db');}
-  catch(e){log('Delete failed: '+e.message,'er');}
-}
-
+async function deleteRecord(id){if(!confirm('Delete record '+id+'?'))return;try{await apiDel('/record/'+id);dbRows=dbRows.filter(r=>r.id!==id);renderTable();log(`DB: deleted #${id}`,'db');}catch(e){log('Delete failed: '+e.message,'er');}}
 function exportCSV(){
   if(!dbRows||!dbRows.length){alert('No records to export');return;}
   const f=document.getElementById('dbFilter').value.trim().toLowerCase();
   const rows=f?dbRows.filter(r=>r.motor_no.toLowerCase().includes(f)):dbRows;
-  const cols=['id','motor_no','motor_notes','record_type','tach_cumulative','tach_delta','direction',
-    'resistance_mohm','inductance_uh','flux_linkage_mwb',
-    'motor_current_a','battery_current_a','duty_pct','voltage_v','rpm_at_95',
-    'rpm_per_volt','rpm_at_48v','tach_at_ramp','timestamp'];
+  const cols=['id','motor_no','motor_notes','record_type','tach_cumulative','tach_delta','direction','resistance_mohm','inductance_uh','flux_linkage_initial_mwb','flux_initial_ts','flux_linkage_final_mwb','flux_final_ts','flux_delta_mwb','flux_linkage_mwb','motor_current_a','battery_current_a','duty_pct','voltage_v','rpm_at_95','rpm_per_volt','rpm_at_48v','tach_at_ramp','timestamp'];
   const escCSV=v=>{if(v===null||v===undefined)return '';const s=String(v);return s.includes(',')||s.includes('"')||s.includes('\n')?`"${s.replace(/"/g,'""')}"`:s;};
   const csv=cols.join(',')+'\n'+rows.map(r=>cols.map(c=>escCSV(r[c])).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=`TMCS_airgap_${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  const blob=new Blob([csv],{type:'text/csv'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`vesc_airgap_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
   log(`Exported ${rows.length} records to CSV`,'db');
 }
 
-// ── QUICK MOTOR LOOKUP — fuzzy / partial + dropdown ───────────────────────────
+function highlightMatch(text,query){const q=query.toLowerCase();let result='',ti=0,qi=0;while(ti<text.length){if(qi<q.length&&text[ti].toLowerCase()===q[qi]){result+=`<mark>${text[ti]}</mark>`;qi++;}else{result+=text[ti];}ti++;}return result;}
+function fuzzyMatch(text,query){const t=text.toLowerCase(),q=query.toLowerCase();let ti=0,qi=0;while(ti<t.length&&qi<q.length){if(t[ti]===q[qi])qi++;ti++;}return qi===q.length;}
+function fuzzyScore(text,query){const t=text.toLowerCase(),q=query.toLowerCase();if(t===q)return 0;if(t.startsWith(q))return 1;if(t.includes(q))return 2;return 3;}
+function getUniqueLookupMotors(q){const seen=new Map();for(const r of dbRows){if(!seen.has(r.motor_no))seen.set(r.motor_no,r);}const all=Array.from(seen.values());if(!q)return all.slice(0,8);const matches=all.filter(r=>fuzzyMatch(r.motor_no,q));matches.sort((a,b)=>fuzzyScore(a.motor_no,q)-fuzzyScore(b.motor_no,q));return matches.slice(0,8);}
+function renderLookupDropdown(q){const dd=document.getElementById('lookupDropdown');const matches=getUniqueLookupMotors(q);if(!q){closeLookupDropdown();return;}if(!matches.length){dd.innerHTML=`<div class="lookup-dd-empty">No motors match "${q}"</div>`;dd.classList.add('on');lookupDDActive=-1;return;}dd.innerHTML=matches.map((r,i)=>{const typ=r.record_type||'airgap';const rpmStr=r.rpm_at_95!=null?r.rpm_at_95.toLocaleString()+' RPM':'';const rpmAt48=r.rpm_at_48v!=null?`@48V: ${Math.round(r.rpm_at_48v).toLocaleString()}`:'';const highlighted=highlightMatch(r.motor_no,q);return `<div class="lookup-dd-item" data-motor="${r.motor_no}" data-idx="${i}" onmousedown="selectLookupItem('${r.motor_no}')" onmouseenter="setLookupActive(${i})"><span class="lookup-dd-motor">${highlighted}</span><span class="lookup-dd-type ${typ}">${typ}</span>${rpmStr?`<span class="lookup-dd-rpm">${rpmStr}</span>`:''} ${rpmAt48?`<span style="font-size:9px;color:var(--text3);">${rpmAt48}</span>`:''}</div>`;}).join('');dd.classList.add('on');lookupDDActive=-1;}
+function setLookupActive(idx){lookupDDActive=idx;document.querySelectorAll('.lookup-dd-item').forEach((el,i)=>el.classList.toggle('active',i===idx));}
+function closeLookupDropdown(){document.getElementById('lookupDropdown').classList.remove('on');lookupDDActive=-1;}
+function selectLookupItem(motorNo){document.getElementById('lookupInput').value=motorNo;closeLookupDropdown();doLookupMotor(motorNo);}
+function onLookupInput(){const q=document.getElementById('lookupInput').value.trim();clearTimeout(lookupDebounce);if(!q){closeLookupDropdown();document.getElementById('lookupResult').textContent='Type to search motors';return;}renderLookupDropdown(q);lookupDebounce=setTimeout(()=>{const exact=dbRows.find(r=>r.motor_no.toLowerCase()===q.toLowerCase());if(exact)doLookupMotor(exact.motor_no);else document.getElementById('lookupResult').innerHTML=`<span style="color:var(--text3);">Select from dropdown or press 🔍</span>`;},400);}
+function onLookupKey(e){const items=document.querySelectorAll('.lookup-dd-item');const dd=document.getElementById('lookupDropdown');if(!dd.classList.contains('on')||!items.length){if(e.key==='Enter')commitLookup();return;}if(e.key==='ArrowDown'){e.preventDefault();lookupDDActive=Math.min(lookupDDActive+1,items.length-1);setLookupActive(lookupDDActive);}else if(e.key==='ArrowUp'){e.preventDefault();lookupDDActive=Math.max(lookupDDActive-1,0);setLookupActive(lookupDDActive);}else if(e.key==='Enter'){e.preventDefault();if(lookupDDActive>=0&&items[lookupDDActive]){selectLookupItem(items[lookupDDActive].dataset.motor);}else{commitLookup();}}else if(e.key==='Escape'){closeLookupDropdown();}}
+function commitLookup(){const q=document.getElementById('lookupInput').value.trim();closeLookupDropdown();if(!q)return;const exact=dbRows.find(r=>r.motor_no.toLowerCase()===q.toLowerCase());if(exact){doLookupMotor(exact.motor_no);return;}const fuzzy=getUniqueLookupMotors(q);if(fuzzy.length)doLookupMotor(fuzzy[0].motor_no);else document.getElementById('lookupResult').innerHTML=`<span style="color:var(--red);">"${q}" not found</span>`;}
+async function doLookupMotor(motorNo){try{const rows=await apiGet(`/records?motor_no=${encodeURIComponent(motorNo)}`);if(!rows.length){document.getElementById('lookupResult').innerHTML=`<span style="color:var(--red);">"${motorNo}" not found</span>`;return;}const tachRows=rows.filter(r=>r.tach_cumulative!=null);const maxTach=tachRows.length?Math.max(...tachRows.map(r=>r.tach_cumulative)):null;const rampRows=rows.filter(r=>r.record_type==='ramp'||r.record_type==='full');const fluxRows=rows.filter(r=>r.flux_linkage_initial_mwb!=null||r.flux_linkage_final_mwb!=null);const fr=fluxRows[0];document.getElementById('lookupResult').innerHTML=`<div style="text-align:left;"><div style="color:var(--amber);font-size:13px;margin-bottom:5px;">${motorNo}</div><div style="color:var(--text3);margin-bottom:2px;">Records: <span style="color:var(--accent);">${rows.length}</span></div><div style="color:var(--text3);margin-bottom:2px;">Max tach: <span style="color:var(--green);">${maxTach!=null?maxTach.toLocaleString():'—'}</span></div>${fr?`<div style="color:var(--text3);">Flux init: <span style="color:var(--accent);">${fr.flux_linkage_initial_mwb?.toFixed(3)||'—'} mWb</span>  final: <span style="color:var(--amber);">${fr.flux_linkage_final_mwb?.toFixed(3)||'—'} mWb</span>  Δ: <span style="color:var(--purple);">${fr.flux_delta_mwb!=null?(fr.flux_delta_mwb>0?'+':'')+fr.flux_delta_mwb.toFixed(3):'—'}</span></div>`:''}${rampRows[0]?`<div style="color:var(--text3);">Peak RPM: <span style="color:var(--accent);">${rampRows[0].rpm_at_95?.toLocaleString()||'—'}</span>  Imot: <span style="color:var(--amber);">${rampRows[0].motor_current_a?.toFixed(1)||'?'}A</span></div>`:''}${rampRows[0]&&rampRows[0].rpm_at_48v?`<div style="color:var(--text3);">@ 48V: <span style="color:var(--accent);font-size:13px;">${Math.round(rampRows[0].rpm_at_48v).toLocaleString()} RPM</span></div>`:''}</div>`;}catch(e){document.getElementById('lookupResult').innerHTML=`<span style="color:var(--red);">DB error</span>`;}}
+document.addEventListener('click',e=>{if(!e.target.closest('.lookup-wrap'))closeLookupDropdown();});
 
-function highlightMatch(text, query) {
-  // Wrap every matched character span (case-insensitive) with <mark>
-  const q = query.toLowerCase();
-  const t = text;
-  let result = '';
-  let ti = 0, qi = 0;
-  while (ti < t.length) {
-    if (qi < q.length && t[ti].toLowerCase() === q[qi]) {
-      result += `<mark>${t[ti]}</mark>`;
-      qi++;
-    } else {
-      result += t[ti];
-    }
-    ti++;
-  }
-  return result;
-}
-
-function fuzzyMatch(text, query) {
-  // Returns true if all characters of query appear in order in text
-  const t = text.toLowerCase(), q = query.toLowerCase();
-  let ti = 0, qi = 0;
-  while (ti < t.length && qi < q.length) {
-    if (t[ti] === q[qi]) qi++;
-    ti++;
-  }
-  return qi === q.length;
-}
-
-function fuzzyScore(text, query) {
-  // Lower = better: prefer exact substring match, then contiguous chars
-  const t = text.toLowerCase(), q = query.toLowerCase();
-  if (t === q) return 0;
-  if (t.startsWith(q)) return 1;
-  if (t.includes(q)) return 2;
-  return 3; // fuzzy only
-}
-
-function getUniqueLookupMotors(q) {
-  // Deduplicate by motor_no — keep latest record per motor
-  const seen = new Map();
-  for (const r of dbRows) {
-    if (!seen.has(r.motor_no)) seen.set(r.motor_no, r);
-  }
-  const all = Array.from(seen.values());
-  if (!q) return all.slice(0, 8);
-
-  const matches = all.filter(r => fuzzyMatch(r.motor_no, q));
-  matches.sort((a, b) => fuzzyScore(a.motor_no, q) - fuzzyScore(b.motor_no, q));
-  return matches.slice(0, 8);
-}
-
-function renderLookupDropdown(q) {
-  const dd = document.getElementById('lookupDropdown');
-  const matches = getUniqueLookupMotors(q);
-
-  if (!q) { closeLookupDropdown(); return; }
-  if (!matches.length) {
-    dd.innerHTML = `<div class="lookup-dd-empty">No motors match "${q}"</div>`;
-    dd.classList.add('on');
-    lookupDDActive = -1;
-    return;
-  }
-
-  dd.innerHTML = matches.map((r, i) => {
-    const typ = r.record_type || 'airgap';
-    const rpmStr = r.rpm_at_95 != null ? r.rpm_at_95.toLocaleString() + ' RPM' : '';
-    const rpmAt48 = r.rpm_at_48v != null ? `@48V: ${Math.round(r.rpm_at_48v).toLocaleString()}` : '';
-    const highlighted = highlightMatch(r.motor_no, q);
-    return `<div class="lookup-dd-item" data-motor="${r.motor_no}" data-idx="${i}"
-        onmousedown="selectLookupItem('${r.motor_no}')"
-        onmouseenter="setLookupActive(${i})">
-      <span class="lookup-dd-motor">${highlighted}</span>
-      <span class="lookup-dd-type ${typ}">${typ}</span>
-      ${rpmStr ? `<span class="lookup-dd-rpm">${rpmStr}</span>` : ''}
-      ${rpmAt48 ? `<span style="font-size:9px;color:var(--muted);">${rpmAt48}</span>` : ''}
-    </div>`;
-  }).join('');
-  dd.classList.add('on');
-  lookupDDActive = -1;
-}
-
-function setLookupActive(idx) {
-  lookupDDActive = idx;
-  document.querySelectorAll('.lookup-dd-item').forEach((el, i) => {
-    el.classList.toggle('active', i === idx);
-  });
-}
-
-function closeLookupDropdown() {
-  document.getElementById('lookupDropdown').classList.remove('on');
-  lookupDDActive = -1;
-}
-
-function selectLookupItem(motorNo) {
-  document.getElementById('lookupInput').value = motorNo;
-  closeLookupDropdown();
-  doLookupMotor(motorNo);
-}
-
-function onLookupInput() {
-  const q = document.getElementById('lookupInput').value.trim();
-  clearTimeout(lookupDebounce);
-  if (!q) {
-    closeLookupDropdown();
-    document.getElementById('lookupResult').textContent = 'Type to search motors';
-    return;
-  }
-  renderLookupDropdown(q);
-  // Debounce the detail panel
-  lookupDebounce = setTimeout(() => {
-    // Only auto-show detail if exact match exists
-    const exact = dbRows.find(r => r.motor_no.toLowerCase() === q.toLowerCase());
-    if (exact) doLookupMotor(exact.motor_no);
-    else document.getElementById('lookupResult').innerHTML =
-      `<span style="color:var(--muted);">Select from dropdown or press 🔍</span>`;
-  }, 400);
-}
-
-function onLookupKey(e) {
-  const items = document.querySelectorAll('.lookup-dd-item');
-  const dd = document.getElementById('lookupDropdown');
-  if (!dd.classList.contains('on') || !items.length) {
-    if (e.key === 'Enter') commitLookup();
-    return;
-  }
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    lookupDDActive = Math.min(lookupDDActive + 1, items.length - 1);
-    setLookupActive(lookupDDActive);
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    lookupDDActive = Math.max(lookupDDActive - 1, 0);
-    setLookupActive(lookupDDActive);
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    if (lookupDDActive >= 0 && items[lookupDDActive]) {
-      selectLookupItem(items[lookupDDActive].dataset.motor);
-    } else {
-      commitLookup();
-    }
-  } else if (e.key === 'Escape') {
-    closeLookupDropdown();
-  }
-}
-
-function commitLookup() {
-  const q = document.getElementById('lookupInput').value.trim();
-  closeLookupDropdown();
-  if (!q) return;
-  // Try exact first, else fuzzy-best
-  const exact = dbRows.find(r => r.motor_no.toLowerCase() === q.toLowerCase());
-  if (exact) { doLookupMotor(exact.motor_no); return; }
-  const fuzzy = getUniqueLookupMotors(q);
-  if (fuzzy.length) doLookupMotor(fuzzy[0].motor_no);
-  else document.getElementById('lookupResult').innerHTML = `<span style="color:var(--danger);">"${q}" not found</span>`;
-}
-
-async function doLookupMotor(motorNo) {
-  try {
-    const rows = await apiGet(`/records?motor_no=${encodeURIComponent(motorNo)}`);
-    if (!rows.length) {
-      document.getElementById('lookupResult').innerHTML = `<span style="color:var(--danger);">"${motorNo}" not found</span>`;
-      return;
-    }
-    const tachRows = rows.filter(r => r.tach_cumulative != null);
-    const maxTach = tachRows.length ? Math.max(...tachRows.map(r => r.tach_cumulative)) : null;
-    const rampRows = rows.filter(r => r.record_type === 'ramp' || r.record_type === 'full');
-    document.getElementById('lookupResult').innerHTML = `<div style="text-align:left;">
-      <div style="color:var(--gold);font-size:13px;margin-bottom:5px;">${motorNo}</div>
-      <div style="color:var(--muted);margin-bottom:2px;">Records: <span style="color:var(--accent);">${rows.length}</span></div>
-      <div style="color:var(--muted);margin-bottom:2px;">Max tach: <span style="color:var(--accent3);">${maxTach != null ? maxTach.toLocaleString() : '—'}</span></div>
-      ${rampRows[0] ? `<div style="color:var(--muted);">Peak RPM: <span style="color:var(--accent);">${rampRows[0].rpm_at_95?.toLocaleString() || '—'}</span>  Imot: <span style="color:var(--gold);">${rampRows[0].motor_current_a?.toFixed(1) || '?'}A</span>  V: <span style="color:var(--accent);">${rampRows[0].voltage_v?.toFixed(1) || '?'}V</span></div>` : ''}
-      ${rampRows[0] && rampRows[0].rpm_at_48v ? `<div style="color:var(--muted);">@ 48V: <span style="color:var(--accent);font-size:13px;">${Math.round(rampRows[0].rpm_at_48v).toLocaleString()} RPM</span></div>` : ''}
-    </div>`;
-  } catch(e) {
-    document.getElementById('lookupResult').innerHTML = `<span style="color:var(--danger);">DB error</span>`;
-  }
-}
-
-// Close dropdown on outside click
-document.addEventListener('click', e => {
-  if (!e.target.closest('.lookup-wrap')) closeLookupDropdown();
-});
-
-// ── Serial ─────────────────────────────────────────────────────────────────────
 function crc16(data){let crc=0;for(let b of data){crc^=b<<8;for(let i=0;i<8;i++)crc=(crc&0x8000)?((crc<<1)^0x1021):(crc<<1);}return crc&0xFFFF;}
 function packet(payload){const c=crc16(payload);return new Uint8Array([2,payload.length,...payload,c>>8,c&0xFF,3]);}
 function buildSetDuty(duty,sid){duty=Math.max(-1,Math.min(1,duty));const raw=Math.round(duty*100000),u=(raw>>>0);return packet([CMD_CAN_FWD,sid&0xFF,CMD_SET_DUTY,(u>>24)&0xFF,(u>>16)&0xFF,(u>>8)&0xFF,u&0xFF]);}
@@ -1068,7 +1498,10 @@ function putScaled(a,v,s){put32s(a,Math.round(v*s));}
 
 async function connect(){
   try{
-    port=await navigator.serial.requestPort();
+    let selectedPort=null;
+    try{selectedPort=await navigator.serial.requestPort({filters:VESC_FILTERS});log('TMCS device selected (STM USB VID match)','ok');}
+    catch(filterErr){log('No VESC USB VID match — showing all ports (select your TMCS COM port)','inf');selectedPort=await navigator.serial.requestPort();}
+    port=selectedPort;
     await port.open({baudRate:115200});
     writer=port.writable.getWriter();reader=port.readable.getReader();
     connected=true;
@@ -1081,8 +1514,7 @@ async function connect(){
   }catch(e){log('Connection failed: '+e.message,'er');}
 }
 async function disconnect(){
-  stopPoll();await stopRun(false);
-  rampActive=false;if(rampTimer){clearTimeout(rampTimer);rampTimer=null;}
+  stopPoll();await stopRun(false);rampActive=false;if(rampTimer){clearTimeout(rampTimer);rampTimer=null;}
   try{if(reader){await reader.cancel();reader.releaseLock();reader=null;}if(writer){writer.releaseLock();writer=null;}if(port){await port.close();port=null;}}catch(e){}
   connected=false;
   document.getElementById('connDot').classList.remove('active');
@@ -1090,87 +1522,32 @@ async function disconnect(){
   ['btnDisc','btnRL','btnFlux','btnPollStart','btnPollStop','btnRampStart'].forEach(id=>document.getElementById(id).disabled=true);
   setStatus('Disconnected','○');log('Disconnected');
 }
-async function readLoop(){
-  while(connected){
-    try{
-      const{value,done}=await reader.read();if(done)break;
-      for(let b of value)buf.push(b);
-      while(buf.length>5){
-        if(buf[0]!==2){buf.shift();continue;}
-        const len=buf[1];if(buf.length<len+5)break;
-        handle(buf.slice(2,2+len));buf=buf.slice(len+5);
-      }
-    }catch(e){if(connected)log('Read error: '+e.message,'er');break;}
-  }
-}
-
+async function readLoop(){while(connected){try{const{value,done}=await reader.read();if(done)break;for(let b of value)buf.push(b);while(buf.length>5){if(buf[0]!==2){buf.shift();continue;}const len=buf[1];if(buf.length<len+5)break;handle(buf.slice(2,2+len));buf=buf.slice(len+5);}}catch(e){if(connected)log('Read error: '+e.message,'er');break;}}}
 function handle(p){
-  if(p[0]===CMD_RL){
-    const R=readS32(p,1)/1000,L=readS32(p,5)/1000;
-    document.getElementById('res').value=R.toFixed(3);document.getElementById('ind').value=L.toFixed(3);
-    document.getElementById('rVal').textContent=R.toFixed(2);document.getElementById('lVal').textContent=L.toFixed(2);
-    PS.rVal=R.toFixed(2);PS.lVal=L.toFixed(2);PS.res=R.toFixed(3);PS.ind=L.toFixed(3);savePS();
-    setStatus('R & L measured ✓','✓');log(`R=${R.toFixed(3)}mΩ  L=${L.toFixed(3)}µH`,'ok');return;
-  }
-  if(p[0]===57){
-    const flux=readS32(p,1)/1e7,fluxMwb=flux*1000,fStr=fluxMwb.toFixed(3);
-    document.getElementById('fluxVal').textContent=fStr;
-    PS.fluxVal=fStr;savePS();
-    setStatus('Flux measured ✓','✓');log(`Flux=${fStr}mWb`,'ok');
-    triggerFluxSuggest(fluxMwb);return;
-  }
-  if(p[0]===CMD_CAN_FWD && p.length>=4){
-    if(p[2]===VESC_GET_VALUES){parseGV(p.slice(3),'slave');}
-    return;
-  }
-  if(p[0]===VESC_GET_VALUES){
-    if(rampWaitingCapture){parseGV(p.slice(1),'master');}
-    else{parseGV(p.slice(1),'slave');}
-    return;
-  }
+  if(p[0]===CMD_RL){const R=readS32(p,1)/1000,L=readS32(p,5)/1000;document.getElementById('res').value=R.toFixed(3);document.getElementById('ind').value=L.toFixed(3);document.getElementById('rVal').textContent=R.toFixed(2);document.getElementById('lVal').textContent=L.toFixed(2);PS.rVal=R.toFixed(2);PS.lVal=L.toFixed(2);PS.res=R.toFixed(3);PS.ind=L.toFixed(3);savePS();setStatus('R & L measured ✓','✓');log(`R=${R.toFixed(3)}mΩ  L=${L.toFixed(3)}µH`,'ok');return;}
+  if(p[0]===57){const flux=readS32(p,1)/1e7,fluxMwb=flux*1000,fStr=fluxMwb.toFixed(3);document.getElementById('fluxVal').textContent=fStr;PS.fluxVal=fStr;savePS();setStatus('Flux measured ✓','✓');log(`Flux=${fStr}mWb — use Capture Initial/Final buttons to record`,'ok');return;}
+  if(p[0]===CMD_CAN_FWD&&p.length>=4){if(p[2]===VESC_GET_VALUES){parseGV(p.slice(3),'slave');}return;}
+  if(p[0]===VESC_GET_VALUES){if(rampWaitingCapture){parseGV(p.slice(1),'master');}else{parseGV(p.slice(1),'slave');}return;}
 }
-
 function parseGV(d,src){
   try{
     if(d.length<20)return;
     const mosfet_temp=readS16(d,0)/10;
-    const mc=readS32(d,4)/100;
-    const bc=readS32(d,8)/100;
+    const mc=readS32(d,4)/100,bc=readS32(d,8)/100;
     let duty,rpm,vin,tach,fault;
     const newLayout=d.length>=53&&readU16(d,26)/10>0.5&&readU16(d,26)/10<120;
-    if(newLayout){
-      duty =readS16(d,20)/1000;
-      rpm  =Math.round(readS32(d,22)/7);
-      vin  =readU16(d,26)/10;
-      tach =readS32(d,44);
-      fault=d[52];
-    }else{
-      duty =readS16(d,12)/1000;
-      rpm  =Math.round(readS32(d,14)/7);
-      vin  =readU16(d,18)/10;
-      tach =d.length>=40?readS32(d,36):0;
-      fault=d.length>=45?d[44]:0;
-    }
+    if(newLayout){duty=readS16(d,20)/1000;rpm=Math.round(readS32(d,22)/7);vin=readU16(d,26)/10;tach=readS32(d,44);fault=d[52];}
+    else{duty=readS16(d,12)/1000;rpm=Math.round(readS32(d,14)/7);vin=readU16(d,18)/10;tach=d.length>=40?readS32(d,36):0;fault=d.length>=45?d[44]:0;}
     if(src==='master'){
-      lastMasterVals={mc,bc,duty:duty*100,vin,rpm};
-      rampWaitingCapture=false;
+      lastMasterVals={mc,bc,duty:duty*100,vin,rpm};rampWaitingCapture=false;
       if(rampActive){
         const sl=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
-        sl('rl_rpm',rpm!=null?rpm.toLocaleString():'—');
-        sl('rl_mc', mc!=null?mc.toFixed(2)+'A':'—');
-        sl('rl_bc', bc!=null?bc.toFixed(2)+'A':'—');
-        sl('rl_v',  vin!=null?vin.toFixed(1)+'V':'—');
-        if(rpm!=null&&Math.abs(rpm)>Math.abs(rampPeak.rpm)){
-          rampPeak={rpm,mc,bc,duty:duty*100,vin};
-          log(`↑ Peak RPM: ${rpm.toLocaleString()}  Imot=${mc.toFixed(2)}A  V=${vin.toFixed(1)}V`,'rmp');
-        }
+        sl('rl_rpm',rpm!=null?rpm.toLocaleString():'—');sl('rl_mc',mc!=null?mc.toFixed(2)+'A':'—');sl('rl_bc',bc!=null?bc.toFixed(2)+'A':'—');sl('rl_v',vin!=null?vin.toFixed(1)+'V':'—');
+        if(rpm!=null&&Math.abs(rpm)>Math.abs(rampPeak.rpm)){rampPeak={rpm,mc,bc,duty:duty*100,vin};log(`↑ Peak RPM: ${rpm.toLocaleString()}  Imot=${mc.toFixed(2)}A  V=${vin.toFixed(1)}V`,'rmp');}
       }
-    }else{
-      updateSlave(tach,vin,rpm,duty,mosfet_temp,fault,mc,bc);
-    }
+    }else{updateSlave(tach,vin,rpm,duty,mosfet_temp,fault,mc,bc);}
   }catch(e){log(`parseGV [${src}] error: ${e.message}`,'er');}
 }
-
 const TMAX=100000,GLEN=267;
 function updateSlave(tach,vin,rpm,duty,mst,fault,mc,bc){
   pktCount++;lastTach=tach;
@@ -1180,21 +1557,21 @@ function updateSlave(tach,vin,rpm,duty,mst,fault,mc,bc){
   document.getElementById('tachUnit').textContent='tachometer counts';
   const ratio=Math.min(Math.abs(tach)/TMAX,1),fill=GLEN*ratio;
   const gf=document.getElementById('gaugeFill');
-  gf.style.strokeDasharray=`${fill} ${GLEN-fill}`;
-  gf.style.stroke=ratio<0.5?'#00e5ff':ratio<0.8?'#f97316':'#ef4444';
+  const gCol=ratio<0.5?'var(--accent)':ratio<0.8?'var(--amber)':'var(--red)';
+  gf.style.strokeDasharray=`${fill} ${GLEN-fill}`;gf.style.stroke=gCol;
   document.getElementById('gaugePct').textContent=`${Math.round(ratio*100)}%`;
-  document.getElementById('gaugePct').style.fill=ratio<0.5?'#00e5ff':ratio<0.8?'#f97316':'#ef4444';
+  document.getElementById('gaugePct').setAttribute('fill',ratio<0.5?'var(--accent)':ratio<0.8?'var(--amber)':'var(--red)');
   document.getElementById('voltVal').textContent=vin.toFixed(1);
   document.getElementById('nrVal').textContent=fault===0?'OK':`F${fault}`;
-  document.getElementById('nrVal').style.color=fault===0?'var(--accent3)':'var(--danger)';
+  document.getElementById('nrVal').style.color=fault===0?'var(--green)':'var(--red)';
   document.getElementById('peakTach').textContent=peakTach.toLocaleString();
   document.getElementById('pktCount').textContent=pktCount;
   const sb=document.getElementById('slaveBadge');
-  sb.textContent=`SLAVE · ${pktCount}`;sb.style.borderColor='var(--accent3)';sb.style.color='var(--accent3)';
-  document.getElementById('liveDot').style.display='inline';
+  sb.textContent=`SLAVE · ${pktCount}`;sb.style.borderColor='var(--green-border)';sb.style.color='var(--green)';sb.style.background='var(--green-dim)';
+  const ld=document.getElementById('liveDot');ld.style.display='inline';
+  const ldi=document.getElementById('liveDotInner');if(ldi){ldi.classList.add('live');}
   if(runActive){document.getElementById('runCurrentTach').textContent=tach;checkRunProgress(tach);}
 }
-
 let pollCnt=0;
 function startPoll(){
   if(pollTimer)return;
@@ -1216,11 +1593,11 @@ function stopPoll(){
   document.getElementById('btnPollStop').disabled=true;
   document.getElementById('btnRunStart').disabled=true;
   document.getElementById('liveDot').style.display='none';
+  const ldi=document.getElementById('liveDotInner');if(ldi){ldi.classList.remove('live');}
   const tv=document.getElementById('tachVal');tv.textContent='– – –';tv.classList.add('stale');
   document.getElementById('tachUnit').textContent='polling stopped';
   setStatus('Polling stopped','○');log('Polling stopped');
 }
-
 async function measureRL(){if(!writer)return;await writer.write(packet([CMD_RL]));setStatus('Measuring R & L…','…');log('Sent CMD_RL(25)');}
 async function runFlux(){
   if(!writer)return;
@@ -1228,16 +1605,14 @@ async function runFlux(){
   const p=[57];putScaled(p,c,1e3);putScaled(p,e,1e3);putScaled(p,d,1e3);putScaled(p,R,1e6);putScaled(p,L,1e8);
   await writer.write(packet(p));setStatus('Measuring flux…','…');log('Sent CMD_FLUX(57)');
 }
-
 function updateRunLabel(){
   const offset=parseInt(document.getElementById('tachTarget').value)||0;
   const db=document.getElementById('dirBadge');
-  if(offset<0){db.textContent='REV';db.className='dir-b rev';}
-  else if(offset>0){db.textContent='FWD';db.className='dir-b fwd';}
-  else{db.textContent='—';db.className='dir-b non';}
+  if(offset<0){db.textContent='REV';db.className='dir-badge rev';}
+  else if(offset>0){db.textContent='FWD';db.className='dir-badge fwd';}
+  else{db.textContent='—';db.className='dir-badge non';}
 }
 function estimateVel(){if(tachSamples.length<2)return 0;const s=tachSamples.slice(-5),dt=s[s.length-1].t-s[0].t,dc=s[s.length-1].tach-s[0].tach;return dt>0?dc/dt:0;}
-
 async function startRun(){
   if(!writer){setRunSt('Not connected','er');return;}
   if(lastTach===null){setRunSt('No tach — start polling','er');return;}
@@ -1250,7 +1625,7 @@ async function startRun(){
   const duty=dutyAbs*runDirection;
   runActive=true;runStartTach=lastTach;runTargetTach=lastTach+offset;tachSamples=[];
   const db=document.getElementById('dirBadge');
-  if(runDirection>0){db.textContent='FWD';db.className='dir-b fwd';}else{db.textContent='REV';db.className='dir-b rev';}
+  if(runDirection>0){db.textContent='FWD';db.className='dir-badge fwd';}else{db.textContent='REV';db.className='dir-badge rev';}
   document.getElementById('runStartTach').textContent=runStartTach;
   document.getElementById('runTargetTach').textContent=runTargetTach;
   document.getElementById('runCurrentTach').textContent=lastTach;
@@ -1259,7 +1634,7 @@ async function startRun(){
   document.getElementById('runProgBar').style.width='0%';
   document.getElementById('runProgLbl').textContent=`0 / ${Math.abs(offset)} (0%)`;
   document.getElementById('runState').textContent='RUNNING';
-  document.getElementById('runState').style.color='var(--accent3)';
+  document.getElementById('runState').style.color='var(--green)';
   document.getElementById('runDot').classList.add('on');
   document.getElementById('btnRunStart').disabled=true;
   document.getElementById('btnRunStop').disabled=false;
@@ -1280,11 +1655,11 @@ async function finishRun(reason){
   document.getElementById('runCurrentSet').textContent='0%';
   const error=finalTach-runTargetTach,es=error>=0?'+':'';
   document.getElementById('runState').textContent=`${es}${error} err`;
-  document.getElementById('runState').style.color=Math.abs(error)<=5?'var(--accent3)':Math.abs(error)<=20?'var(--accent2)':'var(--danger)';
+  document.getElementById('runState').style.color=Math.abs(error)<=5?'var(--green)':Math.abs(error)<=20?'var(--amber)':'var(--red)';
   const steps=Math.abs(totalOffset),actual=Math.abs(finalTach-runStartTach);
   const bar=document.getElementById('runProgBar');
   bar.style.width=`${Math.min(actual/steps*100,100)}%`;
-  bar.style.background=Math.abs(error)<=5?'var(--accent3)':Math.abs(error)<=20?'var(--accent2)':'var(--danger)';
+  bar.style.background=Math.abs(error)<=5?'var(--green)':Math.abs(error)<=20?'var(--amber)':'var(--red)';
   log(`DONE (${reason}) finalTach=${finalTach} err=${es}${error}`,Math.abs(error)<=10?'ok':'er');
   setRunSt(`Final tach ${finalTach}  err ${es}${error}`,Math.abs(error)<=10?'ok':'rn');
   const delta=finalTach-runStartTach,dir=runDirection>0?'FWD':'REV';
@@ -1301,9 +1676,8 @@ async function stopRun(reason){
   document.getElementById('btnRunStop').disabled=true;
   document.getElementById('runCurrentSet').textContent='0%';
   document.getElementById('runState').textContent='STOPPED';
-  document.getElementById('runState').style.color='var(--muted)';
-  setRunSt('Stopped manually.','idle');
-  setStatus('Stopped','○');
+  document.getElementById('runState').style.color='var(--text3)';
+  setRunSt('Stopped manually.','idle');setStatus('Stopped','○');
   log(`Stopped manually at tach=${lastTach}`,'inf');
   if(lastTach!==null&&runStartTach!==null){const delta=Math.abs(lastTach-runStartTach),dir=runDirection>0?'FWD':'REV';if(delta>0)recordMove(delta,dir);}
 }
@@ -1317,14 +1691,13 @@ function checkRunProgress(tach){
   document.getElementById('runProgLbl').textContent=`${Math.round(done)} / ${total} (${Math.round(ratio*100)}%)`;
   const bar=document.getElementById('runProgBar');
   bar.style.width=`${ratio*100}%`;
-  bar.style.background=ratio<0.7?'var(--accent3)':ratio<0.9?'var(--accent2)':'var(--danger)';
+  bar.style.background=ratio<0.7?'var(--green)':ratio<0.9?'var(--amber)':'var(--red)';
   const ms=parseInt(document.getElementById('pollMs').value)||200;
   const vel=estimateVel(),pred=tach+vel*ms;
   const past=runDirection>0?(tach>=runTargetTach||pred>=runTargetTach):(tach<=runTargetTach||pred<=runTargetTach);
   if(past){log(`Cutoff: tach=${tach} target=${runTargetTach}`,'inf');finishRun('target reached');}
 }
-
-function setRunSt(msg,type){const el=document.getElementById('runStatus');el.textContent=msg;el.style.color=type==='ok'?'var(--accent3)':type==='er'?'var(--danger)':type==='rn'?'var(--accent)':'var(--muted)';}
+function setRunSt(msg,type){const el=document.getElementById('runStatus');el.textContent=msg;el.style.color=type==='ok'?'var(--green)':type==='er'?'var(--red)':type==='rn'?'var(--accent)':'var(--text3)';}
 function setStatus(msg,icon='○'){document.getElementById('statusText').textContent=msg;document.getElementById('statusIcon').textContent=icon;}
 function log(msg,cls='inf'){
   const el=document.getElementById('log'),line=document.createElement('div');
@@ -1333,7 +1706,7 @@ function log(msg,cls='inf'){
   line.textContent=`[${ts}] ${msg}`;el.appendChild(line);el.scrollTop=el.scrollHeight;
 }
 function copyLog(){const lines=Array.from(document.querySelectorAll('#log div')).map(d=>d.textContent);navigator.clipboard.writeText(lines.join('\n')).then(()=>log('Log copied ✓','ok'));}
-function showFb(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='sf '+(type==='ok'?'ok':'er');setTimeout(()=>el.className='sf',3500);}
+function showFb(id,msg,type){const el=document.getElementById(id);el.textContent=msg;el.className='feedback '+(type==='ok'?'ok':'er');setTimeout(()=>el.className='feedback',3500);}
 
 loadPS();applyPS();checkAPI();refreshDB();setInterval(checkAPI,10000);
 </script>
